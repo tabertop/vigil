@@ -1,0 +1,16 @@
+{
+  "articles": [
+    { "url": "https://www.aljazeera.com/news/2026/8/3/darfur-el-fasher-rsf-assault", "title": "RSF launches new assault on El Fasher as Darfur fighting intensifies", "seendate": "20260803T101500Z", "domain": "aljazeera.com", "sourcecountry": "Qatar" },
+    { "url": "https://reliefweb.int/report/sudan/displacement-nyala-2026", "title": "UN warns of mass displacement from Nyala amid escalating clashes", "seendate": "20260803T094500Z", "domain": "reliefweb.int", "sourcecountry": "United States" },
+    { "url": "https://news.un.org/en/story/2026/08/red-sea-shipping", "title": "Security Council briefed on Red Sea shipping attacks near Bab-el-Mandeb", "seendate": "20260803T090000Z", "domain": "news.un.org", "sourcecountry": "United States" },
+    { "url": "https://www.reuters.com/world/europe/kharkiv-strike-2026", "title": "Missile strike on Kharkiv industrial zone knocks out power to thousands", "seendate": "20260803T083000Z", "domain": "reuters.com", "sourcecountry": "United Kingdom" },
+    { "url": "https://www.crisisgroup.org/asia/myanmar/lashio-offensive", "title": "Myanmar: resistance offensive on Lashio reshapes the northern front", "seendate": "20260803T080000Z", "domain": "crisisgroup.org", "sourcecountry": "Belgium" },
+    { "url": "https://apnews.com/article/taiwan-strait-pla-median-line", "title": "Taiwan reports 19 PLA aircraft crossing the median line overnight", "seendate": "20260803T074500Z", "domain": "apnews.com", "sourcecountry": "United States" },
+    { "url": "https://www.aljazeera.com/news/2026/8/3/sittwe-arakan-army", "title": "Arakan Army presses toward Sittwe as junta reinforces Rakhine", "seendate": "20260803T071500Z", "domain": "aljazeera.com", "sourcecountry": "Qatar" },
+    { "url": "https://reliefweb.int/report/sudan/khartoum-airstrikes", "title": "Airstrikes reported over Khartoum North as SAF targets RSF positions", "seendate": "20260803T070000Z", "domain": "reliefweb.int", "sourcecountry": "United States" },
+    { "url": "https://www.bbc.com/news/world-africa-goma-2026", "title": "Fresh clashes near Goma displace thousands in eastern DR Congo", "seendate": "20260803T063000Z", "domain": "bbc.com", "sourcecountry": "United Kingdom" },
+    { "url": "https://apnews.com/article/hormuz-tanker-incident", "title": "Vessel reports harassment near the Strait of Hormuz, shipping on alert", "seendate": "20260803T061500Z", "domain": "apnews.com", "sourcecountry": "United States" },
+    { "url": "https://www.reuters.com/world/africa/somalia-mogadishu-attack", "title": "Militant attack targets checkpoint on Mogadishu outskirts", "seendate": "20260803T060000Z", "domain": "reuters.com", "sourcecountry": "United Kingdom" },
+    { "url": "https://www.aljazeera.com/news/2026/8/3/bakhmut-assault", "title": "Heavy fighting reported around Bakhmut as assaults resume", "seendate": "20260803T053000Z", "domain": "aljazeera.com", "sourcecountry": "Qatar" }
+  ]
+}

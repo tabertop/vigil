@@ -1,0 +1,23 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [25.35, 13.63] }, "properties": { "name": "El Fasher, North Darfur, Sudan", "count": 187 } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [43.32, 12.60] }, "properties": { "name": "Bab-el-Mandeb Strait, Yemen", "count": 154 } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [36.23, 49.99] }, "properties": { "name": "Kharkiv, Ukraine", "count": 141 } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [97.75, 22.93] }, "properties": { "name": "Lashio, Shan State, Myanmar", "count": 118 } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [32.53, 15.60] }, "properties": { "name": "Khartoum, Sudan", "count": 112 } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [38.00, 48.60] }, "properties": { "name": "Bakhmut, Donetsk Oblast, Ukraine", "count": 96 } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [119.60, 24.20] }, "properties": { "name": "Taiwan Strait", "count": 88 } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [92.90, 20.15] }, "properties": { "name": "Sittwe, Rakhine State, Myanmar", "count": 74 } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [44.36, 33.31] }, "properties": { "name": "Baghdad, Iraq", "count": 61 } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [24.88, 12.05] }, "properties": { "name": "Nyala, South Darfur, Sudan", "count": 58 } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [56.30, 26.50] }, "properties": { "name": "Strait of Hormuz", "count": 47 } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [15.30, 12.10] }, "properties": { "name": "N'Djamena, Chad", "count": 39 } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [37.61, 49.71] }, "properties": { "name": "Kupiansk, Ukraine", "count": 35 } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [45.32, 2.05] }, "properties": { "name": "Mogadishu, Somalia", "count": 33 } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [13.19, 32.89] }, "properties": { "name": "Tripoli, Libya", "count": 27 } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [69.21, 34.52] }, "properties": { "name": "Kabul, Afghanistan", "count": 24 } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [15.05, -4.32] }, "properties": { "name": "Goma, DR Congo", "count": 22 } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [46.72, 24.71] }, "properties": { "name": "Riyadh, Saudi Arabia", "count": 12 } }
+  ]
+}

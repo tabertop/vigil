@@ -1,0 +1,13 @@
+{
+  "name": "argus-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Real-time world-events & conflict monitor — backend fetcher (GDELT ingestion → normalize → API).",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "ingest": "node src/ingest.js"
+  },
+  "engines": { "node": ">=18" }
+}

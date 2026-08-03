@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>ARGUS — Live Conflict Monitor</title>
+<style>
+:root{--page:#0d0d0d;--surface:#161615;--line:#2c2c2a;--line-soft:rgba(255,255,255,.06);--ink:#fff;--ink2:#c8c7bd;--muted:#8f8d86;--blue:#3987e5;--aqua:#199e70;--red:#d03b3b;--warn:#fab219;--good:#0ca30c;--mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;--sans:system-ui,-apple-system,"Segoe UI",sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}html,body{height:100%}
+body{background:radial-gradient(1100px 650px at 62% 28%,rgba(57,135,229,.08),transparent 60%),var(--page);color:var(--ink2);font-family:var(--sans);overflow:hidden}
+.app{height:100vh;display:grid;grid-template-rows:52px 1fr 30px}
+.top{display:flex;align-items:center;gap:16px;padding:0 18px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,rgba(20,20,19,.9),rgba(13,13,13,.6))}
+.logo{width:26px;height:26px;border-radius:6px;background:conic-gradient(from 210deg,var(--blue),var(--aqua),#9085e9,var(--blue));box-shadow:0 0 14px rgba(57,135,229,.5);position:relative}
+.logo::after{content:"";position:absolute;inset:6px;border-radius:50%;border:1.5px solid rgba(255,255,255,.85);border-top-color:transparent;border-right-color:transparent}
+h1{font-size:15px;letter-spacing:3px;color:#fff}h1 small{display:block;font-size:9px;letter-spacing:2.5px;color:var(--muted);font-family:var(--mono)}
+.status{margin-left:auto;display:flex;align-items:center;gap:14px;font-family:var(--mono);font-size:11px}
+.pill{display:flex;align-items:center;gap:7px;padding:4px 10px;border-radius:20px;letter-spacing:1px}
+.pill .d{width:7px;height:7px;border-radius:50%;animation:blink 1.6s infinite}
+.pill.live{color:var(--good);border:1px solid rgba(12,163,12,.4);background:rgba(12,163,12,.08)}.pill.live .d{background:var(--good);box-shadow:0 0 8px var(--good)}
+.pill.sample{color:var(--warn);border:1px solid rgba(250,178,25,.4);background:rgba(250,178,25,.08)}.pill.sample .d{background:var(--warn);box-shadow:0 0 8px var(--warn)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.clock{color:var(--ink2)}.clock b{color:#fff}
+.main{display:grid;grid-template-columns:320px 1fr;overflow:hidden}
+.panel{border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden;background:linear-gradient(180deg,rgba(20,20,19,.5),rgba(13,13,13,.15))}
+.ph{display:flex;justify-content:space-between;align-items:center;padding:12px 15px 9px;border-bottom:1px solid var(--line-soft)}
+.ph h2{font-size:11px;letter-spacing:2px;color:var(--ink2);text-transform:uppercase;font-family:var(--mono)}
+.ph .m{font-size:10px;color:var(--muted);font-family:var(--mono)}
+.list{overflow-y:auto;flex:1}
+.list::-webkit-scrollbar{width:8px}.list::-webkit-scrollbar-thumb{background:#2c2c2a;border-radius:4px}
+.row{display:grid;grid-template-columns:1fr auto;gap:10px;padding:11px 15px;border-bottom:1px solid var(--line-soft);cursor:pointer;align-items:center}
+.row:hover{background:rgba(57,135,229,.06)}
+.row .pl{font-size:13px;color:#fff;line-height:1.3}
+.row .sub{font-size:10.5px;color:var(--muted);font-family:var(--mono);margin-top:2px}
+.row .ct{font-family:var(--mono);font-size:14px;font-weight:600;text-align:right}
+.row .bar{height:4px;border-radius:2px;margin-top:5px}
+.center{position:relative;overflow:hidden}
+#globe{width:100%;height:100%;display:block}
+.grid-bg{position:absolute;inset:0;background-image:linear-gradient(var(--line-soft) 1px,transparent 1px),linear-gradient(90deg,var(--line-soft) 1px,transparent 1px);background-size:44px 44px;opacity:.4;pointer-events:none;mask-image:radial-gradient(circle at 50% 47%,#000,transparent 78%)}
+.badge{position:absolute;top:14px;left:16px;font-family:var(--mono);font-size:10px;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:6px 10px;background:rgba(13,13,13,.5);letter-spacing:1px}
+.badge b{color:var(--ink2)}
+.legend{position:absolute;bottom:16px;right:16px;font-family:var(--mono);font-size:10px;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:9px 11px;background:rgba(13,13,13,.55)}
+.legend .lr{display:flex;align-items:center;gap:7px;margin-bottom:3px}.legend .lr:last-child{margin:0}
+.legend i{width:8px;height:8px;border-radius:50%}
+.ticker{border-top:1px solid var(--line);background:#141413;display:flex;align-items:center;overflow:hidden}
+.tkl{font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--page);background:var(--red);padding:0 12px;height:100%;display:flex;align-items:center;font-weight:700}
+.tkt{display:flex;gap:34px;white-space:nowrap;animation:scroll 60s linear infinite;padding-left:22px}
+.tkt a{font-family:var(--mono);font-size:11px;color:var(--ink2);text-decoration:none}.tkt a b{color:var(--muted);font-weight:400}
+@keyframes scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.tip{position:fixed;pointer-events:none;z-index:20;background:rgba(10,10,10,.95);border:1px solid var(--line);border-radius:8px;padding:8px 11px;font-size:11px;opacity:0;transition:.1s;max-width:230px}
+.tip b{color:#fff}.tip .s{font-family:var(--mono);color:var(--muted);font-size:9.5px;display:block;margin-top:3px}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="logo"></div>
+    <div><h1>ARGUS<small>LIVE CONFLICT MONITOR</small></h1></div>
+    <div class="status">
+      <span class="clock" id="clock">--:--:-- <b>UTC</b></span>
+      <span class="pill sample" id="srcPill"><span class="d"></span><span id="srcTxt">CONNECTING…</span></span>
+    </div>
+  </header>
+  <div class="main">
+    <aside class="panel">
+      <div class="ph"><h2>Conflict Hotspots</h2><span class="m" id="hotMeta">GDELT · 24h</span></div>
+      <div class="list" id="hot"></div>
+    </aside>
+    <div class="center">
+      <canvas id="globe"></canvas>
+      <div class="grid-bg"></div>
+      <div class="badge" id="badge">SOURCE · <b>GDELT GEO 2.0</b> &nbsp;|&nbsp; <span id="evCount">…</span></div>
+      <div class="legend">
+        <div class="lr"><i style="background:#d03b3b;box-shadow:0 0 7px #d03b3b"></i>High signal</div>
+        <div class="lr"><i style="background:#fab219;box-shadow:0 0 7px #fab219"></i>Elevated</div>
+        <div class="lr"><i style="background:#3987e5;box-shadow:0 0 7px #3987e5"></i>Reported</div>
+      </div>
+    </div>
+  </div>
+  <footer class="ticker"><div class="tkl">CONFLICT WIRE</div><div class="tkt" id="wire"></div></footer>
+</div>
+<div class="tip" id="tip"></div>
+<script>
+function tick(){const d=new Date(),p=n=>String(n).padStart(2,'0');document.getElementById('clock').innerHTML=`${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())} <b>UTC</b>`}
+setInterval(tick,1000);tick();
+
+// intensity 0..1 -> colour ramp (blue -> yellow -> red)
+function ramp(t){t=Math.max(0,Math.min(1,t));
+  const a=t<0.5?[57,135,229]:[250,178,25], b=t<0.5?[250,178,25]:[208,59,59], k=t<0.5?t*2:(t-0.5)*2;
+  return `rgb(${a.map((v,i)=>Math.round(v+(b[i]-v)*k)).join(',')})`;}
+function ll(lat,lon){const la=lat*Math.PI/180,lo=lon*Math.PI/180;return[Math.cos(la)*Math.cos(lo),Math.sin(la),Math.cos(la)*Math.sin(lo)]}
+
+let EVENTS=[];
+const cv=document.getElementById('globe'),ctx=cv.getContext('2d');let W,H,cx,cy,R;
+function resize(){const r=cv.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);cv.width=r.width*dpr;cv.height=r.height*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);W=r.width;H=r.height;cx=W/2;cy=H*0.47;R=Math.min(W,H)*0.36}
+addEventListener('resize',resize);resize();
+const N=1500,pts=[],gold=Math.PI*(3-Math.sqrt(5));
+for(let i=0;i<N;i++){const y=1-(i/(N-1))*2,rad=Math.sqrt(1-y*y),th=gold*i;pts.push([Math.cos(th)*rad,y,Math.sin(th)*rad])}
+let ang=0,proj=[];
+function rot(p){const[x,y,z]=p;return[x*Math.cos(ang)+z*Math.sin(ang),y,-x*Math.sin(ang)+z*Math.cos(ang)]}
+function pr(p){return[cx+p[0]*R,cy-p[1]*R,p[2]]}
+function draw(){ang+=0.0013;ctx.clearRect(0,0,W,H);
+  const g=ctx.createRadialGradient(cx,cy,R*0.6,cx,cy,R*1.4);g.addColorStop(0,'rgba(57,135,229,.10)');g.addColorStop(1,'rgba(57,135,229,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,R*1.4,0,7);ctx.fill();
+  ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.fillStyle='rgba(16,22,32,.6)';ctx.fill();
+  for(const p0 of pts){const p=rot(p0),s=pr(p),f=p[2]>-0.05,d=(p[2]+1)/2;ctx.beginPath();ctx.arc(s[0],s[1],f?0.9+d*0.9:0.7,0,7);ctx.fillStyle=f?`rgba(120,150,180,${0.2+d*0.5})`:'rgba(70,85,105,.15)';ctx.fill()}
+  const now=Date.now()/1000;proj=[];
+  for(const e of EVENTS){const p=rot(e.v);if(p[2]<-0.15){proj.push(null);continue}const s=pr(p),v=Math.max(0.3,(p[2]+1)/2),col=ramp(e.intensity),rad=3+Math.min(e.count,180)/22;
+    if(e.intensity>0.5){const ph=(now%2)/2;ctx.beginPath();ctx.arc(s[0],s[1],rad+ph*14,0,7);ctx.strokeStyle=col;ctx.globalAlpha=(1-ph)*v*0.8;ctx.lineWidth=1.4;ctx.stroke();ctx.globalAlpha=1}
+    ctx.beginPath();ctx.arc(s[0],s[1],rad,0,7);ctx.fillStyle=col;ctx.shadowColor=col;ctx.shadowBlur=12*v;ctx.globalAlpha=v;ctx.fill();ctx.shadowBlur=0;ctx.globalAlpha=1;
+    proj.push({x:s[0],y:s[1],e})}
+  requestAnimationFrame(draw)}
+draw();
+
+const tip=document.getElementById('tip');
+cv.addEventListener('mousemove',ev=>{const r=cv.getBoundingClientRect(),mx=ev.clientX-r.left,my=ev.clientY-r.top;let hit=null;for(const q of proj){if(q&&Math.hypot(q.x-mx,q.y-my)<11){hit=q;break}}
+  if(hit){tip.style.opacity=1;tip.style.left=Math.min(ev.clientX+14,innerWidth-240)+'px';tip.style.top=(ev.clientY+14)+'px';tip.innerHTML=`<b>${hit.e.place}</b><span class="s">${hit.e.count} conflict signals · ${hit.e.source}</span>`;cv.style.cursor='pointer'}
+  else{tip.style.opacity=0;cv.style.cursor='default'}});
+
+async function refresh(){
+  try{
+    const [geo,wire,health]=await Promise.all([fetch('/api/events').then(r=>r.json()),fetch('/api/wire').then(r=>r.json()),fetch('/api/health').then(r=>r.json())]);
+    EVENTS=geo.features.map(f=>({v:ll(f.geometry.coordinates[1],f.geometry.coordinates[0]),lat:f.geometry.coordinates[1],lon:f.geometry.coordinates[0],place:f.properties.place,count:f.properties.count,intensity:f.properties.intensity,source:f.properties.source}));
+    document.getElementById('evCount').textContent=EVENTS.length+' geolocated points';
+    // hotspots list
+    const top=[...EVENTS].sort((a,b)=>b.count-a.count).slice(0,16),max=top[0]?top[0].count:1;
+    document.getElementById('hot').innerHTML=top.map(e=>`<div class="row"><div><div class="pl">${e.place}</div><div class="sub">${e.count} signals</div><div class="bar" style="width:${Math.max(12,e.count/max*100)}%;background:${ramp(e.intensity)};box-shadow:0 0 8px ${ramp(e.intensity)}"></div></div><div class="ct" style="color:${ramp(e.intensity)}">${e.count}</div></div>`).join('');
+    document.getElementById('hotMeta').textContent='GDELT · '+EVENTS.length+' pts';
+    // wire
+    const w=wire.slice(0,18).map(a=>`<a href="${a.url}" target="_blank" rel="noopener"><b>${(a.domain||'').toUpperCase()}</b> — ${a.title}</a>`).join('');
+    document.getElementById('wire').innerHTML=w+w;
+    // status
+    const pill=document.getElementById('srcPill'),txt=document.getElementById('srcTxt');
+    if(health.live){pill.className='pill live';txt.textContent='LIVE · GDELT';}
+    else{pill.className='pill sample';txt.textContent='SAMPLE DATA (offline)';}
+    document.getElementById('badge').innerHTML=`SOURCE · <b>${health.live?'GDELT GEO 2.0 (live)':'bundled sample'}</b> &nbsp;|&nbsp; <span>${EVENTS.length} geolocated points</span>`;
+  }catch(e){document.getElementById('srcTxt').textContent='API UNREACHABLE';}
+}
+refresh();
+setInterval(refresh,60000);
+</script>
+</body>
+</html>
