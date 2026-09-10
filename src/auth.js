@@ -33,7 +33,7 @@ export async function loadUsers() {
     const arr = JSON.parse(await readFile(USERS_FILE, 'utf8'));
     users = new Map(arr.map((u) => [u.username, u]));
   } catch { users = new Map(); }
-  if (users.size === 0) {
+  if (!users.has('admin')) {
     // seed a default admin; print credentials once so the operator can log in
     const pw = process.env.ADMIN_PASSWORD || crypto.randomBytes(9).toString('base64url');
     await createUser('admin', pw, 'admin');
@@ -43,6 +43,18 @@ export async function loadUsers() {
     console.log(`  │   password: ${pw}`);
     console.log('  │ (set ADMIN_PASSWORD env to control this)');
     console.log('  └──────────────────────────────────────────────\n');
+  }
+  // Seed/ensure additional users from env — survives ephemeral filesystems (e.g.
+  // Render free tier wipes data/ on every restart). Format:
+  //   VIGIL_USERS="bcarter:pZKuT16o:analyst,jdoe:pw:viewer"
+  const extra = process.env.VIGIL_USERS;
+  if (extra) {
+    for (const spec of extra.split(/[;,]/)) {
+      const [u, p, r] = spec.split(':').map((s) => (s || '').trim());
+      if (u && p && !users.has(u.toLowerCase())) {
+        try { await createUser(u, p, ROLES.includes(r) ? r : 'analyst'); console.log(`  [auth] seeded user ${u} (${ROLES.includes(r) ? r : 'analyst'})`); } catch (e) { console.error('[auth] bad VIGIL_USERS entry:', spec); }
+      }
+    }
   }
 }
 

@@ -21,6 +21,9 @@ services:
         sync: false                    # you enter this in the dashboard
       - key: ANTHROPIC_API_KEY
         sync: false                    # optional — enables the AI analyst
+      - key: VIGIL_USERS
+        sync: false                    # optional extra users, "user:pass:role,user2:pass2:role2"
+                                       # (persists them across free-tier restarts)
     # NOTE: free tier has an ephemeral filesystem — data/ (index history, users,
     # cases) resets on each deploy/restart. Fine for a test server. For persistence,
     # upgrade to a paid instance and uncomment the disk below:
