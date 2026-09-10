@@ -1,6 +1,6 @@
 node_modules/
-data/*.json
 .DS_Store
 .env
-data/
 .claude/
+# runtime data store ONLY (root-anchored so it never matches src/data/)
+/data/
