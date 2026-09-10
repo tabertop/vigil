@@ -1085,11 +1085,23 @@ cv.addEventListener('click',ev=>{if(didDrag)return;const r=cv.getBoundingClientR
     openDossier({place:q.e.place});return}}
   // no marker hit → open the country under the cursor
   const ll=screenToLatLon(mx,my);if(!ll)return;const c=countryAt(ll.lat,ll.lon);if(c)openDossier({iso:c.i});});
-// clicking a cluster zooms/centres so it separates into individual markers
+// clicking a cluster zooms/centres so it separates into individual markers.
+// On the 3D globe we switch to the 2D map and zoom into the spot, so the cluster
+// visibly "explodes" into the individual, clickable events.
 function zoomToCluster(lat,lon){
-  if(view==='2d'){ map2d.z=Math.min(8,map2d.z*1.9); map2d.init=false; fitMap();
-    const mapW=W*map2d.z,mapH=(W/2)*map2d.z; map2d.x=W/2-((lon+180)/360)*mapW; map2d.y=H/2-((90-lat)/180)*mapH; map2d.init=true; updateZoomCtl&&updateZoomCtl(); }
-  else { focusLon(lon,lat); } // 3D: rotate the cluster to face the viewer
+  if(view==='3d'){
+    view='2d';
+    document.querySelectorAll('#viewtog button').forEach(x=>x.classList.toggle('on',x.dataset.v==='2d'));
+    const cii=document.getElementById('ciiScale'); if(cii)cii.style.display='';
+    focusTarget=null; cv.style.cursor='grab';
+    map2d.z=4.5; // land zoomed in on the region
+  } else {
+    map2d.z=Math.min(8,map2d.z*1.9);
+  }
+  map2d.init=false; fitMap();
+  const mapW=W*map2d.z,mapH=(W/2)*map2d.z;
+  map2d.x=W/2-((lon+180)/360)*mapW; map2d.y=H/2-((90-lat)/180)*mapH; map2d.init=true;
+  updateZoomCtl&&updateZoomCtl();
 }
 
 // ---- intelligence dossier drawer ----
