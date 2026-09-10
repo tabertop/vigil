@@ -775,8 +775,8 @@ const CHOKEPOINTS=[
 const LDATA={conflict:[],country:[],hotspots:[],protests:[],armedconflict:[],disasters:[],disease:[],natural:[],fires:[],storms:[],floods:[],volcanoes:[],drought:[],nuclear:[],military:[],spaceports:[],
   chokepoints:CHOKEPOINTS.map(c=>({lat:c.lat,lon:c.lon,label:c.name,place:c.name,sub:'Strategic chokepoint · click for brief'})),
   tradeRoutes:[],aircraft:[],vessels:[],thermal:[],terror:[],cyber:[]};
-const cv=document.getElementById('globe'),ctx=cv.getContext('2d');let W,H,cx,cy,R;
-function resize(){const r=cv.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);cv.width=r.width*dpr;cv.height=r.height*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);W=r.width;H=r.height;cx=W/2;cy=H*0.47;R=Math.min(W,H)*0.36}
+const cv=document.getElementById('globe'),ctx=cv.getContext('2d');let W,H,cx,cy,R,Rbase,globeZoom=1;
+function resize(){const r=cv.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);cv.width=r.width*dpr;cv.height=r.height*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);W=r.width;H=r.height;cx=W/2;cy=H*0.47;Rbase=Math.min(W,H)*0.36;R=Rbase*globeZoom}
 addEventListener('resize',resize);resize();
 
 // ---- world land (continents), Natural Earth 50m ----
@@ -1016,9 +1016,13 @@ cv.style.cursor='grab';
 // 2D zoom controls (+ / − / home)
 function zoomBy(f){const mx=W/2,my=H/2,mW=W*map2d.z,mH=(W/2)*map2d.z,fx=(mx-map2d.x)/mW,fy=(my-map2d.y)/mH;
   map2d.z=Math.max(1,Math.min(7,map2d.z*f));const nW=W*map2d.z,nH=(W/2)*map2d.z;map2d.x=mx-fx*nW;map2d.y=my-fy*nH;}
-document.getElementById('zoomctl').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
-  if(b.dataset.z==='in')zoomBy(1.5);else if(b.dataset.z==='out')zoomBy(1/1.5);else map2d={z:1,x:0,y:0,init:false};});
-function updateZoomCtl(){document.getElementById('zoomctl').classList.toggle('show',view==='2d');}
+// zoom the globe by scaling its radius (3D) or the map (2D)
+function globeZoomBy(f){ globeZoom=Math.max(1,Math.min(3,globeZoom*f)); R=Rbase*globeZoom; }
+document.getElementById('zoomctl').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const z=b.dataset.z;
+  if(view==='2d'){ if(z==='in')zoomBy(1.5); else if(z==='out')zoomBy(1/1.5); else map2d={z:1,x:0,y:0,init:false}; }
+  else { if(z==='in')globeZoomBy(1.3); else if(z==='out')globeZoomBy(1/1.3); else {globeZoom=1;R=Rbase;ang=-2.15;tilt=0.32;} }
+});
+function updateZoomCtl(){document.getElementById('zoomctl').classList.add('show');} // available in both 2D and 3D
 updateZoomCtl();
 // time-window filter → re-query the API for that window
 document.getElementById('timebar').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;windowSel=b.dataset.w;
@@ -1055,7 +1059,9 @@ addEventListener('mousemove',ev=>{if(!dragging)return;const dx=ev.clientX-lastX,
   if(view==='3d'){ang+=dx*0.006;tilt=clampTilt(tilt+dy*0.006);}else{map2d.x+=dx;map2d.y+=dy;}
   lastX=ev.clientX;lastY=ev.clientY});
 addEventListener('mouseup',()=>{if(dragging){dragging=false;cv.style.cursor='grab'}});
-cv.addEventListener('wheel',ev=>{if(view!=='2d')return;ev.preventDefault();const r=cv.getBoundingClientRect(),mx=ev.clientX-r.left,my=ev.clientY-r.top;
+cv.addEventListener('wheel',ev=>{ev.preventDefault();
+  if(view==='3d'){ globeZoomBy(ev.deltaY<0?1.1:1/1.1); return; }
+  const r=cv.getBoundingClientRect(),mx=ev.clientX-r.left,my=ev.clientY-r.top;
   const mW=W*map2d.z,mH=(W/2)*map2d.z,fx=(mx-map2d.x)/mW,fy=(my-map2d.y)/mH;
   map2d.z=Math.max(1,Math.min(7,map2d.z*(ev.deltaY<0?1.15:1/1.15)));
   const nW=W*map2d.z,nH=(W/2)*map2d.z;map2d.x=mx-fx*nW;map2d.y=my-fy*nH;},{passive:false});
