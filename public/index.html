@@ -1809,7 +1809,18 @@ async function refresh(){
         return out;
       };
       const w=diversify(wire,24).map(a=>`<a href="${a.url}" target="_blank" rel="noopener noreferrer"><b class="${cls(a)}">${label(a)}</b> — ${esc(a.title||'')}</a>`).join('');
-      if(w)document.getElementById('wire').innerHTML=w+w;
+      if(w){
+        const wireEl=document.getElementById('wire');
+        wireEl.innerHTML=w+w;
+        // Explicitly (re)start the marquee and pace it by actual content width, so
+        // it always scrolls at a steady, visible speed on any instance. Relying on
+        // the static CSS animation alone left the ticker static in some cases.
+        const half=(wireEl.scrollWidth/2)||wireEl.getBoundingClientRect().width;
+        const dur=Math.max(20,Math.round(half/120)); // ~120px/s
+        wireEl.style.animation='none';
+        void wireEl.offsetWidth;                       // force reflow so it re-triggers
+        wireEl.style.animation='scroll '+dur+'s linear infinite';
+      }
     }catch(e){console.error('[refresh] wire:',e);}
 
     // ---- threat gauge + trend/forecast tables (feed the index arrows) ----
