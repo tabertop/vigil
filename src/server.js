@@ -315,4 +315,17 @@ server.listen(PORT, () => {
   const ingestThenPrime = () => runIngest().then(prime).catch((e) => console.error('[ingest] failed:', e && e.message));
   ingestThenPrime();                              // ingest once on boot (background) + prime
   setInterval(ingestThenPrime, INGEST_EVERY_MS);  // then on a timer
+
+  // Keep-alive: free hosting (Render free tier) spins the instance DOWN after ~15
+  // min of no inbound traffic, so the next visitor eats a 30-60s cold start. A
+  // light self-ping every 10 min keeps it warm. Runs only when a public URL is
+  // known (RENDER_EXTERNAL_URL is injected automatically on Render, or set
+  // KEEPALIVE_URL) — so it's a no-op in local dev. Hits /login: public + cheap.
+  const KEEPALIVE_URL = process.env.KEEPALIVE_URL || process.env.RENDER_EXTERNAL_URL;
+  if (KEEPALIVE_URL) {
+    const ping = () => fetch(KEEPALIVE_URL.replace(/\/$/, '') + '/login')
+      .catch((e) => console.error('[keepalive] ping failed:', e && e.message));
+    setInterval(ping, 10 * 60 * 1000); // every 10 min (< the ~15 min idle window)
+    console.log(`  keep-alive: self-ping ${KEEPALIVE_URL} every 10 min\n`);
+  }
 });

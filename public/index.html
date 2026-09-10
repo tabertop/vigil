@@ -1769,28 +1769,31 @@ function runAlerts(news,C){
 }
 
 async function refresh(){
+  const qs='?window='+windowSel;
+  const J=(u)=>fetch(u).then(r=>r.json());
+  // Fire every request at once (parallel — same network load as before), but
+  // render in STAGES so the globe, instability index and wire paint the moment
+  // their data lands instead of blocking on the slowest analytics endpoint. The
+  // globe draws from its own rAF loop, so setting EVENTS/INDEXBYISO/LDATA below
+  // shows on the next frame — no explicit redraw needed.
+  const P={
+    geo:J('/api/events'+qs), wire:J('/api/wire'+qs), health:J('/api/health'),
+    index:J('/api/index'+qs), natural:J('/api/natural'+qs), topnews:J('/api/topnews'+qs),
+    hazards:J('/api/hazards'+qs), protests:J('/api/protests'+qs), armed:J('/api/armedconflict'+qs),
+    disease:J('/api/disease'+qs), terror:J('/api/terror'+qs), correlation:J('/api/correlation'+qs),
+    trends:J('/api/trends?hours=24'), fusion:J('/api/fusion'+qs), forecast:J('/api/forecast?horizon=72'),
+    aircraft:J('/api/aircraft'), vessels:J('/api/vessels'), thermal:J('/api/thermal'),
+    cyber:J('/api/cyber'), warnings:J('/api/warnings'+qs), threat:J('/api/threatlevel'+qs)
+  };
+  let C=[]; // instability index countries — shared across stages
+
+  // ---- STAGE 1: globe + instability index + wire + status (the visual core) ----
   try{
-    const qs='?window='+windowSel;
-    const [geo,wire,health,index,natural,topnews,hazards,protests,armed,disease,terror,correlation,trends,fusion,forecast,aircraft,vessels,thermal,cyber,warnings,threat]=await Promise.all([
-      fetch('/api/events'+qs).then(r=>r.json()),fetch('/api/wire'+qs).then(r=>r.json()),
-      fetch('/api/health').then(r=>r.json()),fetch('/api/index'+qs).then(r=>r.json()),
-      fetch('/api/natural'+qs).then(r=>r.json()),fetch('/api/topnews'+qs).then(r=>r.json()),
-      fetch('/api/hazards'+qs).then(r=>r.json()),fetch('/api/protests'+qs).then(r=>r.json()),
-      fetch('/api/armedconflict'+qs).then(r=>r.json()),fetch('/api/disease'+qs).then(r=>r.json()),
-      fetch('/api/terror'+qs).then(r=>r.json()),
-      fetch('/api/correlation'+qs).then(r=>r.json()),fetch('/api/trends?hours=24').then(r=>r.json()),
-      fetch('/api/fusion'+qs).then(r=>r.json()),fetch('/api/forecast?horizon=72').then(r=>r.json()),
-      fetch('/api/aircraft').then(r=>r.json()),fetch('/api/vessels').then(r=>r.json()),fetch('/api/thermal').then(r=>r.json()),
-      fetch('/api/cyber').then(r=>r.json()),
-      fetch('/api/warnings'+qs).then(r=>r.json()),
-      fetch('/api/threatlevel'+qs).then(r=>r.json())]);
+    const [geo,index,wire,health,natural,hazards,protests,trends,forecast,threat]=await Promise.all([
+      P.geo,P.index,P.wire,P.health,P.natural,P.hazards,P.protests,P.trends,P.forecast,P.threat]);
     renderThreat(threat);
     TRENDS=(trends&&trends.byIso)||{};
     FORECAST=(forecast&&forecast.byIso)||{};
-    LDATA.aircraft=(aircraft||[]).map(a=>({lat:a.lat,lon:a.lon,intensity:a.intensity,label:a.label,place:a.place,role:a.role,track:a.track,sub:a.sub}));
-    LDATA.vessels=(vessels||[]).map(v=>({lat:v.lat,lon:v.lon,intensity:v.intensity,label:v.label,place:v.place,sub:v.sub}));
-    LDATA.thermal=(thermal||[]).map(t=>({lat:t.lat,lon:t.lon,intensity:t.intensity,label:t.label,place:t.place,sub:t.sub}));
-    LDATA.cyber=(cyber||[]).map(c=>({lat:c.lat,lon:c.lon,intensity:c.intensity,label:c.label,place:c.place,sub:c.sub}));
     EVENTS=geo.features.map(f=>({v:ll(f.geometry.coordinates[1],f.geometry.coordinates[0]),lat:f.geometry.coordinates[1],lon:f.geometry.coordinates[0],place:f.properties.place,count:f.properties.count,intensity:f.properties.intensity,source:f.properties.source,precise:f.properties.precise}));
     // populate live layers from the fused event model
     LDATA.conflict=EVENTS.filter(e=>e.precise!==false).map(e=>({lat:e.lat,lon:e.lon,count:e.count,intensity:e.intensity,label:e.place,place:e.place,source:e.source,sub:e.count+' conflict signals · '+e.source}));
@@ -1801,13 +1804,9 @@ async function refresh(){
     for(const h of (hazards||[])){if(LDATA[h.layer])LDATA[h.layer].push({lat:h.lat,lon:h.lon,intensity:h.intensity,label:h.label,place:h.place,sub:h.sub});}
     // Natural disasters = all quakes + hazards combined into one layer
     LDATA.disasters=[...LDATA.natural,...LDATA.fires,...LDATA.storms,...LDATA.floods,...LDATA.volcanoes,...LDATA.drought];
-    // wire-derived event layers
-    LDATA.armedconflict=(armed||[]).map(a=>({lat:a.lat,lon:a.lon,count:a.count,intensity:a.intensity,label:a.label,place:a.place,sub:a.sub}));
-    LDATA.disease=(disease||[]).map(a=>({lat:a.lat,lon:a.lon,count:a.count,intensity:a.intensity,label:a.label,place:a.place,sub:a.sub}));
-    LDATA.terror=(terror||[]).map(a=>({lat:a.lat,lon:a.lon,count:a.count,intensity:a.intensity,label:a.label,place:a.place,sub:a.sub}));
 
     // ---- instability index (left panel, default tab) ----
-    const C=index.countries||[];
+    C=index.countries||[];
     for(const k in INDEXBYISO)delete INDEXBYISO[k];
     for(const c of C)INDEXBYISO[c.iso]={score:c.score,tier:c.tier}; // drives the 2D choropleth
     // intel hotspots = the top instability concentrations (reticles)
@@ -1823,74 +1822,15 @@ async function refresh(){
     const crit=C.filter(c=>c.tier==='Critical').length;
     document.getElementById('panelMeta2').textContent=crit?crit+' critical':'';
 
-    // ---- indicators & warnings (scenario tripwires) ----
-    const WARN=(warnings&&warnings.scenarios)||[];
-    const wlvl={CRITICAL:'#e5484d',WARNING:'#ff8c42',WATCH:'#fab219',DORMANT:'#5b6b62'};
-    document.getElementById('warnList').innerHTML='<div class="wintro">Named crisis scenarios, each scored by how many of its warning indicators are currently tripped.</div>'+WARN.map((s,i)=>{
-      const col=wlvl[s.level]||'#5b6b62';
-      const inds=s.indicators.map(ind=>`<div class="wind ${ind.tripped?'on':''}"><span class="wib">${ind.tripped?'●':'○'}</span><span class="wil">${esc(ind.label)}</span><span class="wid">${esc(ind.detail||'')}</span></div>`).join('');
-      return `<div class="wscn" data-i="${i}"><div class="whd"><span class="wdot" style="background:${col};color:${col}"></span><div class="wnm"><div class="wtitle">${esc(s.name)}</div><div class="wsub">${esc(s.region)} · ${s.tripped}/${s.total} indicators · ${esc(s.assessment)}</div></div><span class="wlev" style="color:${col}">${s.level}<b>${s.probability}%</b></span></div><div class="winds" hidden>${inds}</div></div>`;
-    }).join('');
-    document.querySelectorAll('#warnList .whd').forEach(h=>h.addEventListener('click',()=>{const w=h.parentElement.querySelector('.winds');if(w)w.hidden=!w.hidden;}));
-
-    // ---- convergence (cross-domain correlation engine) ----
-    CORR=(correlation&&correlation.alerts)||[];
-    document.getElementById('convList').innerHTML=CORR.length?('<div class="ctree">'+CORR.map(a=>{
-      const tc=a.tier==='Convergence'?'#e5484d':a.tier==='Compound'?'#ff8c42':'#5b9bd5';
-      const leaves=a.domains.map(d=>`<div class="cleaf"><span class="cdom ${d.key}">${esc(d.label)}</span><span class="clh">${esc(d.headline||'active in window')}</span></div>`).join('');
-      return `<div class="cbranch"><div class="cnode" data-iso="${a.iso}"><span class="cdot" style="color:${tc};background:${tc}"></span><span class="cname">${esc(a.name)}</span><span class="cdc">${a.domainCount} domains</span><span class="ctier" style="color:${tc}">${a.tier.toUpperCase()}</span><span class="cconv" style="color:${tc}">${a.convergence}</span></div><div class="cleaves">${leaves}</div></div>`;
-    }).join('')+'</div>'):'<div class="ph"><span class="m">no cross-domain convergence in this window</span></div>';
-    document.querySelectorAll('#convList .cnode').forEach(el=>el.addEventListener('click',()=>openDossier({iso:el.dataset.iso})));
-
     // ---- hotspots (second tab) ----
     const top=[...EVENTS].filter(e=>e.precise!==false).sort((a,b)=>b.count-a.count).slice(0,18),max=top[0]?top[0].count:1;
     document.getElementById('hotList').innerHTML=top.map(e=>`<div class="row" data-lat="${e.lat}" data-lon="${e.lon}" data-label="${e.place}"><div><div class="pl">${e.place}</div><div class="sub">${e.count} signals · ${e.source}</div><div class="bar" style="width:${Math.max(12,e.count/max*100)}%;background:${ramp(e.intensity)};box-shadow:0 0 8px ${ramp(e.intensity)}"></div></div><div class="ct" style="color:${ramp(e.intensity)}">${e.count}</div></div>`).join('');
-
-    // ---- top news (aggregated cross-source stories) ----
-    const news=(topnews&&topnews.stories)||[];
-
-    // ---- world brief (synthesized global situation from the top clusters) ----
-    const critN=C.filter(c=>c.tier==='Critical').length;
-    const topCrit=C.slice(0,3).map(c=>c.name).join(', ');
-    document.getElementById('wbAgo').textContent=windowSel+' · updated '+new Date().toUTCString().slice(17,22);
-    const wbItems=news.slice(0,5).map(s=>{const sc=s.sourceCount,cc=sc>=3?'wb-c3':sc>=2?'wb-c2':'wb-c1';
-      return `<a class="wb-item" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer"><span class="wb-cred ${cc}">${sc}<b>SRC</b></span><span class="wb-t">${esc(s.title)}</span></a>`;}).join('');
-    document.getElementById('wbBody').innerHTML=
-      `<div class="wb-lead"><b>${C.length}</b> countries active · <b>${EVENTS.length}</b> signals · <b>${critN}</b> at critical${topCrit?' ('+esc(topCrit)+')':''}. Leading developments:</div>`+
-      (wbItems||'<div class="wb-t" style="color:var(--muted)">awaiting multi-source stories…</div>');
-    runAlerts(news,C); // browser notifications for new critical events + confirmed news
-    evalWatch(C);      // analyst-defined watch conditions
-    if(netOpen)fetch('/api/linkgraph?window='+windowSel).then(r=>r.json()).then(setNetData).catch(()=>{}); // live-refresh graph
-    // ---- fused intelligence events (clustered + graded + confidence) ----
-    const EVS=(fusion&&fusion.events)||[];
-    const confCol={CONFIRMED:'#3fb950',PROBABLE:'#fab219','SINGLE-SOURCE':'#7d8590'};
-    document.getElementById('newsList').innerHTML=EVS.slice(0,50).map((e,i)=>{
-      const lv=e.confidence.level,col=confCol[lv]||'#7d8590';
-      const grades=e.provenance.slice(0,6).map(p=>`<span class="gchip g${p.grade}" title="${esc(p.source)} · grade ${p.grade} (${esc(p.gradeLabel||'')})">${esc(p.source)}<b>${p.grade}</b></span>`).join('')+(e.provenance.length>6?`<span class="gchip more">+${e.provenance.length-6}</span>`:'');
-      const geo=(e.countries||[]).join(' · ');
-      const prov=e.provenance.map(p=>`<a class="pv" href="${esc(p.url)}" target="_blank" rel="noopener noreferrer"><span class="gchip g${p.grade}">${esc(p.source)}<b>${p.grade}</b></span><span class="pvt">${esc(p.title)}</span></a>`).join('');
-      const sev=e.severity?' <span class="sevdot" style="color:'+(e.severity>=2?'#e5484d':'#f2792b')+'">'+'●'.repeat(e.severity)+'</span>':'';
-      const iso0=(e.countries||[])[0]||'';
-      return `<div class="ev" data-i="${i}" data-iso="${iso0}"><div class="evhd"><div class="conf" style="--c:${col}"><b>${lv==='SINGLE-SOURCE'?'1 SRC':lv}</b><span>${e.confidence.score}</span></div>
-        <div class="evb"><div class="evt">${esc(e.title)} <button class="evask" data-ask="${esc(e.title)}" title="Ask VIGIL about this">🛰</button></div><div class="evm">${ago(e.lastSeen)}${geo?' · '+esc(geo):''} · ${e.sourceCount} source${e.sourceCount===1?'':'s'} · best ${e.confidence.bestGrade}${sev}${iso0?' · <span class="evopen">open dossier ▸</span>':''}</div>
-        <div class="evsrcs">${grades}</div></div></div><div class="evprov" hidden>${prov}</div></div>`;
-    }).join('')||'<div class="ph"><span class="m">no intelligence events in this window</span></div>';
-    // Click an event → open its country's dossier. Click the source chips → expand provenance.
-    document.querySelectorAll('#newsList .ev').forEach(el=>{
-      const iso=el.dataset.iso;
-      el.querySelector('.evhd').addEventListener('click',ev=>{
-        if(ev.target.closest('.evask')||ev.target.closest('.evsrcs'))return; // handled separately
-        if(iso)openDossier({iso}); else {const p=el.querySelector('.evprov');if(p)p.hidden=!p.hidden;}
-      });
-      const src=el.querySelector('.evsrcs');
-      if(src)src.addEventListener('click',ev=>{ev.stopPropagation();const p=el.querySelector('.evprov');if(p)p.hidden=!p.hidden;});
-    });
-    document.querySelectorAll('#newsList .evask').forEach(b=>b.addEventListener('click',ev=>{ev.stopPropagation();askAbout('Explain this development and why it matters: "'+b.dataset.ask+'"');}));
 
     // click a country/hotspot -> open its intelligence dossier (also spins globe)
     document.querySelectorAll('.irow').forEach(el=>el.addEventListener('click',()=>openDossier({iso:el.dataset.iso})));
     renderIndexStars();
     document.querySelectorAll('.row').forEach(el=>el.addEventListener('click',()=>openDossier({place:el.dataset.label})));
+    evalWatch(C); // analyst-defined watch conditions
 
     // ---- wire (multi-source attribution) ----
     const label=a=>a.source&&a.source.includes('GDELT')?(a.domain||'gdelt').toUpperCase():(a.source||a.domain||'').toUpperCase();
@@ -1917,6 +1857,84 @@ async function refresh(){
     srcEl.title=srcs.length?srcs.join(', '):'no live sources';
     document.getElementById('srcbar').innerHTML=`<span class="lbl">LIVE FEEDS · ${srcs.length}</span>`+(srcs.length?srcs.map(s=>`<span class="chip">${s}</span>`).join(''):'<span class="lbl">none — sample mode</span>');
   }catch(e){document.getElementById('srcTxt').textContent='API UNREACHABLE';}
+
+  // ---- STAGE 2: extra point-feed layers (globe picks them up on its next frame) ----
+  try{
+    const [aircraft,vessels,thermal,cyber,armed,disease,terror]=await Promise.all([
+      P.aircraft,P.vessels,P.thermal,P.cyber,P.armed,P.disease,P.terror]);
+    LDATA.aircraft=(aircraft||[]).map(a=>({lat:a.lat,lon:a.lon,intensity:a.intensity,label:a.label,place:a.place,role:a.role,track:a.track,sub:a.sub}));
+    LDATA.vessels=(vessels||[]).map(v=>({lat:v.lat,lon:v.lon,intensity:v.intensity,label:v.label,place:v.place,sub:v.sub}));
+    LDATA.thermal=(thermal||[]).map(t=>({lat:t.lat,lon:t.lon,intensity:t.intensity,label:t.label,place:t.place,sub:t.sub}));
+    LDATA.cyber=(cyber||[]).map(c=>({lat:c.lat,lon:c.lon,intensity:c.intensity,label:c.label,place:c.place,sub:c.sub}));
+    LDATA.armedconflict=(armed||[]).map(a=>({lat:a.lat,lon:a.lon,count:a.count,intensity:a.intensity,label:a.label,place:a.place,sub:a.sub}));
+    LDATA.disease=(disease||[]).map(a=>({lat:a.lat,lon:a.lon,count:a.count,intensity:a.intensity,label:a.label,place:a.place,sub:a.sub}));
+    LDATA.terror=(terror||[]).map(a=>({lat:a.lat,lon:a.lon,count:a.count,intensity:a.intensity,label:a.label,place:a.place,sub:a.sub}));
+  }catch(e){}
+
+  // ---- STAGE 3: analytics panels (warnings, convergence, world brief, fused events) ----
+  try{
+    const [warnings,correlation,topnews,fusion]=await Promise.all([
+      P.warnings,P.correlation,P.topnews,P.fusion]);
+
+    // ---- indicators & warnings (scenario tripwires) ----
+    const WARN=(warnings&&warnings.scenarios)||[];
+    const wlvl={CRITICAL:'#e5484d',WARNING:'#ff8c42',WATCH:'#fab219',DORMANT:'#5b6b62'};
+    document.getElementById('warnList').innerHTML='<div class="wintro">Named crisis scenarios, each scored by how many of its warning indicators are currently tripped.</div>'+WARN.map((s,i)=>{
+      const col=wlvl[s.level]||'#5b6b62';
+      const inds=s.indicators.map(ind=>`<div class="wind ${ind.tripped?'on':''}"><span class="wib">${ind.tripped?'●':'○'}</span><span class="wil">${esc(ind.label)}</span><span class="wid">${esc(ind.detail||'')}</span></div>`).join('');
+      return `<div class="wscn" data-i="${i}"><div class="whd"><span class="wdot" style="background:${col};color:${col}"></span><div class="wnm"><div class="wtitle">${esc(s.name)}</div><div class="wsub">${esc(s.region)} · ${s.tripped}/${s.total} indicators · ${esc(s.assessment)}</div></div><span class="wlev" style="color:${col}">${s.level}<b>${s.probability}%</b></span></div><div class="winds" hidden>${inds}</div></div>`;
+    }).join('');
+    document.querySelectorAll('#warnList .whd').forEach(h=>h.addEventListener('click',()=>{const w=h.parentElement.querySelector('.winds');if(w)w.hidden=!w.hidden;}));
+
+    // ---- convergence (cross-domain correlation engine) ----
+    CORR=(correlation&&correlation.alerts)||[];
+    document.getElementById('convList').innerHTML=CORR.length?('<div class="ctree">'+CORR.map(a=>{
+      const tc=a.tier==='Convergence'?'#e5484d':a.tier==='Compound'?'#ff8c42':'#5b9bd5';
+      const leaves=a.domains.map(d=>`<div class="cleaf"><span class="cdom ${d.key}">${esc(d.label)}</span><span class="clh">${esc(d.headline||'active in window')}</span></div>`).join('');
+      return `<div class="cbranch"><div class="cnode" data-iso="${a.iso}"><span class="cdot" style="color:${tc};background:${tc}"></span><span class="cname">${esc(a.name)}</span><span class="cdc">${a.domainCount} domains</span><span class="ctier" style="color:${tc}">${a.tier.toUpperCase()}</span><span class="cconv" style="color:${tc}">${a.convergence}</span></div><div class="cleaves">${leaves}</div></div>`;
+    }).join('')+'</div>'):'<div class="ph"><span class="m">no cross-domain convergence in this window</span></div>';
+    document.querySelectorAll('#convList .cnode').forEach(el=>el.addEventListener('click',()=>openDossier({iso:el.dataset.iso})));
+
+    // ---- top news (aggregated cross-source stories) ----
+    const news=(topnews&&topnews.stories)||[];
+
+    // ---- world brief (synthesized global situation from the top clusters) ----
+    const critN=C.filter(c=>c.tier==='Critical').length;
+    const topCrit=C.slice(0,3).map(c=>c.name).join(', ');
+    document.getElementById('wbAgo').textContent=windowSel+' · updated '+new Date().toUTCString().slice(17,22);
+    const wbItems=news.slice(0,5).map(s=>{const sc=s.sourceCount,cc=sc>=3?'wb-c3':sc>=2?'wb-c2':'wb-c1';
+      return `<a class="wb-item" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer"><span class="wb-cred ${cc}">${sc}<b>SRC</b></span><span class="wb-t">${esc(s.title)}</span></a>`;}).join('');
+    document.getElementById('wbBody').innerHTML=
+      `<div class="wb-lead"><b>${C.length}</b> countries active · <b>${EVENTS.length}</b> signals · <b>${critN}</b> at critical${topCrit?' ('+esc(topCrit)+')':''}. Leading developments:</div>`+
+      (wbItems||'<div class="wb-t" style="color:var(--muted)">awaiting multi-source stories…</div>');
+    runAlerts(news,C); // browser notifications for new critical events + confirmed news
+    if(netOpen)fetch('/api/linkgraph?window='+windowSel).then(r=>r.json()).then(setNetData).catch(()=>{}); // live-refresh graph
+    // ---- fused intelligence events (clustered + graded + confidence) ----
+    const EVS=(fusion&&fusion.events)||[];
+    const confCol={CONFIRMED:'#3fb950',PROBABLE:'#fab219','SINGLE-SOURCE':'#7d8590'};
+    document.getElementById('newsList').innerHTML=EVS.slice(0,50).map((e,i)=>{
+      const lv=e.confidence.level,col=confCol[lv]||'#7d8590';
+      const grades=e.provenance.slice(0,6).map(p=>`<span class="gchip g${p.grade}" title="${esc(p.source)} · grade ${p.grade} (${esc(p.gradeLabel||'')})">${esc(p.source)}<b>${p.grade}</b></span>`).join('')+(e.provenance.length>6?`<span class="gchip more">+${e.provenance.length-6}</span>`:'');
+      const geo=(e.countries||[]).join(' · ');
+      const prov=e.provenance.map(p=>`<a class="pv" href="${esc(p.url)}" target="_blank" rel="noopener noreferrer"><span class="gchip g${p.grade}">${esc(p.source)}<b>${p.grade}</b></span><span class="pvt">${esc(p.title)}</span></a>`).join('');
+      const sev=e.severity?' <span class="sevdot" style="color:'+(e.severity>=2?'#e5484d':'#f2792b')+'">'+'●'.repeat(e.severity)+'</span>':'';
+      const iso0=(e.countries||[])[0]||'';
+      return `<div class="ev" data-i="${i}" data-iso="${iso0}"><div class="evhd"><div class="conf" style="--c:${col}"><b>${lv==='SINGLE-SOURCE'?'1 SRC':lv}</b><span>${e.confidence.score}</span></div>
+        <div class="evb"><div class="evt">${esc(e.title)} <button class="evask" data-ask="${esc(e.title)}" title="Ask VIGIL about this">🛰</button></div><div class="evm">${ago(e.lastSeen)}${geo?' · '+esc(geo):''} · ${e.sourceCount} source${e.sourceCount===1?'':'s'} · best ${e.confidence.bestGrade}${sev}${iso0?' · <span class="evopen">open dossier ▸</span>':''}</div>
+        <div class="evsrcs">${grades}</div></div></div><div class="evprov" hidden>${prov}</div></div>`;
+    }).join('')||'<div class="ph"><span class="m">no intelligence events in this window</span></div>';
+    // Click an event → open its country's dossier. Click the source chips → expand provenance.
+    document.querySelectorAll('#newsList .ev').forEach(el=>{
+      const iso=el.dataset.iso;
+      el.querySelector('.evhd').addEventListener('click',ev=>{
+        if(ev.target.closest('.evask')||ev.target.closest('.evsrcs'))return; // handled separately
+        if(iso)openDossier({iso}); else {const p=el.querySelector('.evprov');if(p)p.hidden=!p.hidden;}
+      });
+      const src=el.querySelector('.evsrcs');
+      if(src)src.addEventListener('click',ev=>{ev.stopPropagation();const p=el.querySelector('.evprov');if(p)p.hidden=!p.hidden;});
+    });
+    document.querySelectorAll('#newsList .evask').forEach(b=>b.addEventListener('click',ev=>{ev.stopPropagation();askAbout('Explain this development and why it matters: "'+b.dataset.ask+'"');}));
+  }catch(e){}
 }
 refresh();
 setInterval(refresh,60000);
