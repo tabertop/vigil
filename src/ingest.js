@@ -22,9 +22,20 @@ import { computeInstability } from './analysis/instability.js';
 import { load, upsertEvents, setWire, setIndex, setNatural, setHazards, setFeed, setMeta, getMeta, getEvents, appendHistory } from './store.js';
 
 export async function runIngest() {
+  // Each source is wrapped so a single failure/timeout can NEVER abort the whole
+  // ingest — the cycle always completes with whatever succeeded and records lastIngest.
+  const safe = (p, fb) => Promise.resolve(p).then((v) => v || fb).catch((e) => { console.error('[ingest] source failed:', e && e.message); return fb; });
   const [geo, doc, rss, natural, hazards, aircraft, vessels, firms, telegram, cyber] = await Promise.all([
-    fetchEvents('24h'), fetchWire('24h'), fetchRss(), fetchNatural(), fetchHazards(),
-    fetchAircraft(), fetchVessels(), fetchFirms(), fetchTelegram(), fetchCyber(),
+    safe(fetchEvents('24h'), { events: [], live: false }),
+    safe(fetchWire('24h'), { wire: [], live: false }),
+    safe(fetchRss(), { geo: [], wire: [], live: false, sources: [] }),
+    safe(fetchNatural(), { events: [], live: false }),
+    safe(fetchHazards(), { events: [], live: false, sources: [] }),
+    safe(fetchAircraft(), { events: [], live: false, sources: [] }),
+    safe(fetchVessels(), { events: [], live: false, sources: [] }),
+    safe(fetchFirms(), { events: [], live: false, sources: [] }),
+    safe(fetchTelegram(), { wire: [], live: false, sources: [] }),
+    safe(fetchCyber(), { events: [], live: false, sources: [] }),
   ]);
   await setNatural(natural.events);
   await setHazards(hazards.events);

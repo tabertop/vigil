@@ -352,8 +352,22 @@ function toCountrySignals(wire) {
 
 // ---- public fetcher (live, with graceful fixture fallback) ----
 
+// Fetch in bounded batches, not all ~150 feeds at once — 150 concurrent HTTPS
+// requests + buffered XML spikes memory and sockets and OOM-kills a small (512MB)
+// instance mid-ingest. Batching keeps peak memory flat at a small cost in latency.
+const RSS_CONCURRENCY = 12;
+async function fetchInBatches(feeds, limit) {
+  const out = [];
+  for (let i = 0; i < feeds.length; i += limit) {
+    const batch = feeds.slice(i, i + limit);
+    const r = await Promise.allSettled(batch.map((f) => getText(f.url).then((xml) => ({ feed: f, xml }))));
+    out.push(...r);
+  }
+  return out;
+}
+
 export async function fetchRss() {
-  const results = await Promise.allSettled(FEEDS.map((f) => getText(f.url).then((xml) => ({ feed: f, xml }))));
+  const results = await fetchInBatches(FEEDS, RSS_CONCURRENCY);
   const wire = [];
   const sources = [];
   for (const r of results) {
