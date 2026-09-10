@@ -97,7 +97,7 @@ export async function upsertEvents(events) {
 }
 
 export async function setWire(wire) {
-  state.wire = wire.slice(0, 400); // more sources (RSS + Telegram) → keep a deeper wire
+  state.wire = wire.slice(0, 1600); // deep wire so the long tail of countries has coverage
   state.meta.wireCount = state.wire.length;
   await persist();
 }

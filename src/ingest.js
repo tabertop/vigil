@@ -55,10 +55,12 @@ export async function runIngest() {
   // Fuse wire: GDELT + RSS + Telegram OSINT, newest first. English-only (drop
   // non-Latin-script headlines) and reserve capacity for Telegram so high-volume
   // RSS/GDELT can't starve it out of the capped wire.
+  // Deep wire (~1500) so the long tail of countries — not just the ~40 most-covered —
+  // has reporting. A shallow cap made places like Venezuela show empty.
   const byTime = (a, b) => (b.publishedAt || 0) - (a.publishedAt || 0);
   const mainstream = [...doc.wire, ...rss.wire].filter((a) => isEnglish(a.title)).sort(byTime);
-  const tg = telegram.wire.filter((a) => isEnglish(a.title)).sort(byTime).slice(0, 70);
-  const wire = [...mainstream.slice(0, 330), ...tg].sort(byTime);
+  const tg = telegram.wire.filter((a) => isEnglish(a.title)).sort(byTime).slice(0, 150);
+  const wire = [...mainstream.slice(0, 1400), ...tg].sort(byTime);
   // Provenance: stamp when OSINT retrieved each item (distinct from publishedAt),
   // so every downstream claim carries source + published + retrieved timestamps.
   const retrievedAt = Date.now();
