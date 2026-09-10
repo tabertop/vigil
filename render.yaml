@@ -1,0 +1,28 @@
+# Render blueprint — deploy VIGIL with no CLI.
+# 1) Push this folder to a GitHub repo.
+# 2) Render dashboard → New → Blueprint → pick the repo.
+# 3) Set the two secrets it asks for (ADMIN_PASSWORD, ANTHROPIC_API_KEY); AUTH_SECRET
+#    is auto-generated. AUTH_SECRET stays fixed for the service's life, so sessions
+#    survive restarts.
+services:
+  - type: web
+    name: vigil
+    runtime: node
+    plan: free
+    buildCommand: "npm install"        # no deps → effectively a no-op
+    startCommand: "node src/server.js"
+    healthCheckPath: /login            # public route (returns 200 without auth)
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: AUTH_SECRET
+        generateValue: true            # Render generates + persists a strong secret
+      - key: ADMIN_PASSWORD
+        sync: false                    # you enter this in the dashboard
+      - key: ANTHROPIC_API_KEY
+        sync: false                    # optional — enables the AI analyst
+    # Persist data/ (index history, cases, users) across deploys:
+    disk:
+      name: vigil-data
+      mountPath: /app/data
+      sizeGB: 1

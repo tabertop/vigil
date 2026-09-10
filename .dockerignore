@@ -1,0 +1,7 @@
+# Never bake secrets or local state into the image
+.env
+data/
+node_modules/
+.git/
+.DS_Store
+*.log

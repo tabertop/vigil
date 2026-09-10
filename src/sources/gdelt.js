@@ -82,6 +82,7 @@ export function normalizeGeo(geojson) {
         intensity: Math.min(1, count / 50), // 0..1 for colour/size
         type: 'conflict-signal',
         source: 'GDELT GEO 2.0',
+        time: now,                   // GDELT geo is a rolling window; stamp ingest time
         ingestedAt: now,
       };
     })
