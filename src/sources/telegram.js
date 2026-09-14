@@ -44,7 +44,12 @@ export const TG_CHANNELS = [
   { ch: 'disclosetv', grade: 'D', note: 'Breaking news' },
 ];
 
-const UA = 'Mozilla/5.0 (compatible; VigilMonitor/1.0; +https://vigil.local)';
+// Browser UA — datacenter IPs (e.g. the Render host) get throttled/blocked by
+// Telegram far more aggressively with a bot-identifying UA, which silently emptied
+// the feeds in production while they worked from a local IP. Mimic a real browser,
+// matching rss.js.
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Telegram is a LIVE wire — drop anything older than this. Some channels' public
 // web previews are frozen on an old archive (e.g. t.me/s/Osinttechnical still
@@ -88,39 +93,60 @@ function parseChannel(html, ch) {
   return out;
 }
 
-async function grab(ch) {
+async function fetchOnce(ch) {
   const ctrl = new AbortController();
   const to = setTimeout(() => ctrl.abort(), 15000);
   try {
-    const r = await fetch('https://t.me/s/' + ch, { headers: { 'user-agent': UA, accept: 'text/html' }, signal: ctrl.signal, redirect: 'follow' });
-    if (!r.ok) return [];
-    return parseChannel(await r.text(), ch);
-  } catch { return []; } finally { clearTimeout(to); }
+    const r = await fetch('https://t.me/s/' + ch, {
+      headers: { 'user-agent': UA, accept: 'text/html', 'accept-language': 'en-US,en;q=0.9' },
+      signal: ctrl.signal, redirect: 'follow',
+    });
+    if (!r.ok) return { retry: r.status === 429 || r.status >= 500, posts: [] };
+    return { retry: false, posts: parseChannel(await r.text(), ch) };
+  } catch { return { retry: true, posts: [] }; } finally { clearTimeout(to); }
+}
+
+// Retry once on failure or an empty parse — datacenter IPs get transiently throttled
+// by Telegram, and a single miss shouldn't drop a live channel for the whole cycle.
+async function grab(ch) {
+  let res = await fetchOnce(ch);
+  if (res.retry || !res.posts.length) { await sleep(1200); res = await fetchOnce(ch); }
+  return res.posts;
 }
 
 export async function fetchTelegram() {
-  const results = await Promise.allSettled(TG_CHANNELS.map(async (c) => {
-    // t.me/s/ lists posts oldest→newest, so sort by time and take the freshest 12.
-    const posts = (await grab(c.ch)).sort((a, b) => b.publishedAt - a.publishedAt).slice(0, 12);
-    return posts.map((p) => {
-      const isos = tagCountries(p.title).map((t) => t.country.iso);
+  // Fetch in small batches, NOT all 16 at once: a burst of concurrent requests from
+  // a single IP gets rate-limited by Telegram (the datacenter host was being emptied
+  // this way while every channel worked from a local IP). Small gaps between batches
+  // plus grab()'s retry ride out the throttling.
+  const BATCH = 4;
+  const perChannel = []; // { ch, items }
+  for (let i = 0; i < TG_CHANNELS.length; i += BATCH) {
+    const settled = await Promise.allSettled(TG_CHANNELS.slice(i, i + BATCH).map(async (c) => {
+      // t.me/s/ lists posts oldest→newest, so sort by time and take the freshest 12.
+      const posts = (await grab(c.ch)).sort((a, b) => b.publishedAt - a.publishedAt).slice(0, 12);
       return {
-        id: p.id, title: p.title, url: p.url, domain: 't.me',
-        source: 'TG ' + c.ch, country: '', countries: isos,
-        publishedAt: p.publishedAt || Date.now(),
+        ch: c.ch,
+        items: posts.map((p) => ({
+          id: p.id, title: p.title, url: p.url, domain: 't.me',
+          source: 'TG ' + c.ch, country: '', countries: tagCountries(p.title).map((t) => t.country.iso),
+          publishedAt: p.publishedAt || Date.now(),
+        })),
       };
-    });
-  }));
+    }));
+    for (const s of settled) perChannel.push(s.status === 'fulfilled' ? s.value : { ch: '?', items: [] });
+    if (i + BATCH < TG_CHANNELS.length) await sleep(400); // brief gap between batches
+  }
+
   // Track live vs dead per channel so dead/frozen feeds surface in the logs every
   // ingest (they're re-fetched each cycle, so a channel that comes back is picked
   // up automatically — and one that dies is flagged for re-audit).
   const wire = [];
   const liveChans = [], deadChans = [];
-  results.forEach((r, i) => {
-    const name = TG_CHANNELS[i].ch;
-    if (r.status === 'fulfilled' && r.value.length) { liveChans.push(name); wire.push(...r.value); }
-    else deadChans.push(name);
-  });
+  for (const { ch, items } of perChannel) {
+    if (items.length) { liveChans.push(ch); wire.push(...items); }
+    else deadChans.push(ch);
+  }
   console.log(`[telegram] ${liveChans.length}/${TG_CHANNELS.length} channels live · ${wire.length} fresh posts`);
   if (deadChans.length) console.warn('[telegram] no fresh posts (prune/re-audit): ' + deadChans.join(', '));
   return { wire, live: liveChans.length > 0, channels: liveChans.length, sources: liveChans.length ? ['Telegram (' + liveChans.length + ' channels)'] : [] };
