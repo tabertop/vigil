@@ -43,6 +43,12 @@ export const TG_CHANNELS = [
 
 const UA = 'Mozilla/5.0 (compatible; VigilMonitor/1.0; +https://vigil.local)';
 
+// Telegram is a LIVE wire — drop anything older than this. Some channels' public
+// web previews are frozen on an old archive (e.g. t.me/s/Osinttechnical still
+// serves June-2022 posts), and stamping those "now" pinned years-stale headlines
+// to the top of the wire forever. Only genuinely recent posts belong here.
+const MAX_AGE_MS = 4 * 864e5; // 4 days
+
 function decode(s) {
   return String(s)
     .replace(/<br\s*\/?>/gi, ' ')
@@ -63,10 +69,12 @@ function parseChannel(html, ch) {
     if (!post || !text) continue;
     const title = decode(text[1]);
     if (title.length < 12) continue; // skip media-only / trivial posts
-    // t.me/s/ shows only recent posts; treat an unparseable/out-of-range datetime
-    // (forwarded-message artifacts can yield stale values) as current.
-    let ts = time ? Date.parse(time[1]) : NaN;
-    if (!isFinite(ts) || ts > Date.now() + 36e5 || ts < Date.now() - 14 * 864e5) ts = Date.now();
+    // Require a real, recent publish time from the message's <time datetime>.
+    // Drop anything unparseable, implausibly future, or older than MAX_AGE — this
+    // is what stops frozen-archive channels from re-injecting stale posts as "new"
+    // on every ingest (the bug that pinned a 2022 headline to the wire for days).
+    const ts = time ? Date.parse(time[1]) : NaN;
+    if (!isFinite(ts) || ts > Date.now() + 36e5 || ts < Date.now() - MAX_AGE_MS) continue;
     out.push({
       id: 'tg:' + post[1],
       url: 'https://t.me/' + post[1],
@@ -89,8 +97,9 @@ async function grab(ch) {
 
 export async function fetchTelegram() {
   const results = await Promise.allSettled(TG_CHANNELS.map(async (c) => {
-    const posts = await grab(c.ch);
-    return posts.slice(0, 12).map((p) => {
+    // t.me/s/ lists posts oldest→newest, so sort by time and take the freshest 12.
+    const posts = (await grab(c.ch)).sort((a, b) => b.publishedAt - a.publishedAt).slice(0, 12);
+    return posts.map((p) => {
       const isos = tagCountries(p.title).map((t) => t.country.iso);
       return {
         id: p.id, title: p.title, url: p.url, domain: 't.me',
