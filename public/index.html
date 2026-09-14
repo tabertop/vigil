@@ -1053,9 +1053,13 @@ cv.addEventListener('mousemove',ev=>{if(dragging){tip.style.opacity=0;return}con
     const e=hit.e;tip.innerHTML=`<b>${e.label||e.place||''}</b><span class="s">${e.sub||''}</span>`;cv.style.cursor='pointer'}
   else{tip.style.opacity=0;cv.style.cursor='grab'}});
 // drag to rotate the globe (3D) or pan the map (2D); wheel zooms the 2D map
-let lastX=0,lastY=0;
-cv.addEventListener('mousedown',ev=>{dragging=true;didDrag=false;lastX=ev.clientX;lastY=ev.clientY;if(view==='3d'){focusTarget=null;tiltTarget=null;}cv.style.cursor='grabbing';ev.preventDefault()});
-addEventListener('mousemove',ev=>{if(!dragging)return;const dx=ev.clientX-lastX,dy=ev.clientY-lastY;if(Math.abs(dx)+Math.abs(dy)>3)didDrag=true;
+let lastX=0,lastY=0,downX=0,downY=0;
+cv.addEventListener('mousedown',ev=>{dragging=true;didDrag=false;lastX=downX=ev.clientX;lastY=downY=ev.clientY;if(view==='3d'){focusTarget=null;tiltTarget=null;}cv.style.cursor='grabbing';ev.preventDefault()});
+addEventListener('mousemove',ev=>{if(!dragging)return;const dx=ev.clientX-lastX,dy=ev.clientY-lastY;
+  // Count it as a drag only once the pointer has travelled a real distance from where
+  // it went DOWN (total displacement), not per-move jitter — so small hand-shake on a
+  // click no longer gets swallowed as a drag and eats the click (dossier/zoom).
+  if(Math.hypot(ev.clientX-downX,ev.clientY-downY)>6)didDrag=true;
   if(view==='3d'){ang+=dx*0.006;tilt=clampTilt(tilt+dy*0.006);}else{map2d.x+=dx;map2d.y+=dy;}
   lastX=ev.clientX;lastY=ev.clientY});
 addEventListener('mouseup',()=>{if(dragging){dragging=false;cv.style.cursor='grab'}});
