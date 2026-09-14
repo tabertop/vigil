@@ -47,10 +47,18 @@ export function computeForecast(history = [], { horizonH = 72 } = {}) {
     // projection. A real country score moves at most a few points per hour.
     const maxPerStep = 6; // points/snapshot
     slope = Math.max(-maxPerStep, Math.min(maxPerStep, slope));
-    const perDay = Math.max(-40, Math.min(40, Math.round(slope * (24 / stepH) * 10) / 10));
     const cur = series[series.length - 1];
-    // clamp the projected move too (belt-and-suspenders against spikes)
-    const move = Math.max(-35, Math.min(35, slope * stepsAhead));
+    // Low-level countries must not post dramatic forecasts off a noisy, short history.
+    // Watch-tier scores (0–25) are dominated by noise and gazetteer structural breaks
+    // (a country entering the index jumps 0→20 in one step), which manufactured
+    // "Ireland +27/day, 92% escalation risk". Gate the forward-looking outputs by
+    // current level: 0 up to score ~15, ramping to full only by the Severe band (~60).
+    // Genuine escalation stories are Severe/Critical and keep their full forecast; this
+    // just silences the low-level noise that made the dossiers non-credible.
+    const levelGate = Math.max(0, Math.min(1, (cur - 15) / 45));
+    const perDay = Math.max(-40, Math.min(40, Math.round(slope * (24 / stepH) * levelGate * 10) / 10));
+    // clamp the projected move too (belt-and-suspenders against spikes), then damp by level
+    const move = Math.max(-35, Math.min(35, slope * stepsAhead)) * levelGate;
     let projection = Math.max(0, Math.min(100, Math.round(cur + move)));
     const vol = std(recent) || 1;
 
@@ -68,7 +76,8 @@ export function computeForecast(history = [], { horizonH = 72 } = {}) {
       const base = 1 / (1 + Math.exp(-((projection - nextBand) / (vol + 5))));
       // absolute-level pressure: higher current score carries inherent upside risk
       const pressure = Math.max(0, (cur - (nextBand - 15)) / 30) * 0.25;
-      probEscalation = Math.max(0, Math.min(1, base + pressure));
+      // damp by level too: a calm country's projected "crossing" is noise, not risk
+      probEscalation = Math.max(0, Math.min(1, base + pressure)) * levelGate;
     } else {
       // already Critical: sustained-critical / deepening risk
       const cool = Math.min(0, slope); // negative when cooling
