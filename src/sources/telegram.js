@@ -12,33 +12,36 @@ import { tagCountries } from '../data/countries.js';
 
 // Curated channels. grade: C = established monitor, D = caution (default).
 // Deliberately spans theaters and viewpoints — corroboration is handled downstream.
+//
+// MAINTENANCE: t.me/s/ public previews can be turned off by a channel or freeze on
+// an old archive — either way the channel silently stops contributing. All channels
+// below were verified live (posting within 4 days) when last audited; fetchTelegram()
+// logs any that return zero posts on every ingest, so dead feeds surface in the logs
+// for re-audit. Removed as dead/frozen: Militarylandnet, NOELreports, Osinttechnical
+// (frozen 2022), IntelCrab, Faytuks (frozen), sentdefender, Global_Mil_Info,
+// ASB_Military_News, warfare_analysis, IntelRepublic, Suriyakmaps, visegrad24,
+// worldsource24. Re-add if their previews come back.
 export const TG_CHANNELS = [
   // Ukraine / Russia theater
   { ch: 'DeepStateUA', grade: 'C', note: 'Ukraine frontline mapping' },
-  { ch: 'Militarylandnet', grade: 'C', note: 'Ukraine order of battle' },
   { ch: 'wartranslated', grade: 'C', note: 'Primary-source translations' },
-  { ch: 'NOELreports', grade: 'C', note: 'Ukraine war updates' },
+  { ch: 'KyivIndependent_official', grade: 'C', note: 'Ukrainian outlet (English)' },
   { ch: 'rybar', grade: 'D', note: 'Russian mil (pro-RU)' },
   { ch: 'Tass_agency', grade: 'D', note: 'Russian state agency' },
-  // Military / conflict OSINT
-  { ch: 'Osinttechnical', grade: 'C', note: 'Military OSINT' },
-  { ch: 'IntelCrab', grade: 'C', note: 'Conflict OSINT' },
-  { ch: 'Faytuks', grade: 'C', note: 'Breaking-news aggregator' },
-  { ch: 'sentdefender', grade: 'D', note: 'Global mil monitor' },
   { ch: 'war_monitor', grade: 'D', note: 'General conflict' },
   { ch: 'WarMonitors', grade: 'D', note: 'General conflict' },
-  { ch: 'Global_Mil_Info', grade: 'D', note: 'Military news' },
-  { ch: 'ASB_Military_News', grade: 'D', note: 'Military news' },
-  { ch: 'warfare_analysis', grade: 'D', note: 'Conflict analysis' },
-  { ch: 'IntelRepublic', grade: 'D', note: 'Geopolitics' },
+  // Military / conflict OSINT
+  { ch: 'ClashReport', grade: 'C', note: 'Conflict OSINT (English)' },
+  { ch: 'BellumActaNews', grade: 'D', note: 'Conflict news (English)' },
+  { ch: 'DDGeopolitics', grade: 'D', note: 'Geopolitics (English)' },
+  { ch: 'Megatron_ron', grade: 'D', note: 'Middle East monitor' },
   // Middle East / other theaters
   { ch: 'Osint613', grade: 'C', note: 'Israel/MENA OSINT' },
-  { ch: 'Megatron_ron', grade: 'D', note: 'Middle East monitor' },
-  { ch: 'Suriyakmaps', grade: 'D', note: 'Syria/MENA mapping' },
-  // News aggregators
-  { ch: 'visegrad24', grade: 'C', note: 'Breaking geopolitics' },
+  { ch: 'IsraelWarRoom', grade: 'D', note: 'Israel/MENA (English)' },
+  // News aggregators (English)
+  { ch: 'insiderpaper', grade: 'D', note: 'Breaking-news aggregator' },
+  { ch: 'worldnews', grade: 'D', note: 'World news' },
   { ch: 'disclosetv', grade: 'D', note: 'Breaking news' },
-  { ch: 'worldsource24', grade: 'D', note: 'World news' },
 ];
 
 const UA = 'Mozilla/5.0 (compatible; VigilMonitor/1.0; +https://vigil.local)';
@@ -108,8 +111,17 @@ export async function fetchTelegram() {
       };
     });
   }));
+  // Track live vs dead per channel so dead/frozen feeds surface in the logs every
+  // ingest (they're re-fetched each cycle, so a channel that comes back is picked
+  // up automatically — and one that dies is flagged for re-audit).
   const wire = [];
-  let liveChannels = 0;
-  for (const r of results) if (r.status === 'fulfilled' && r.value.length) { liveChannels++; wire.push(...r.value); }
-  return { wire, live: liveChannels > 0, channels: liveChannels, sources: liveChannels ? ['Telegram (' + liveChannels + ' channels)'] : [] };
+  const liveChans = [], deadChans = [];
+  results.forEach((r, i) => {
+    const name = TG_CHANNELS[i].ch;
+    if (r.status === 'fulfilled' && r.value.length) { liveChans.push(name); wire.push(...r.value); }
+    else deadChans.push(name);
+  });
+  console.log(`[telegram] ${liveChans.length}/${TG_CHANNELS.length} channels live · ${wire.length} fresh posts`);
+  if (deadChans.length) console.warn('[telegram] no fresh posts (prune/re-audit): ' + deadChans.join(', '));
+  return { wire, live: liveChans.length > 0, channels: liveChans.length, sources: liveChans.length ? ['Telegram (' + liveChans.length + ' channels)'] : [] };
 }
