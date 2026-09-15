@@ -250,6 +250,11 @@ h1{font-size:15px;letter-spacing:3px;color:#fff}h1 small{display:block;font-size
 .waddgrid select,.waddgrid input{background:#0e0e0d;border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:8px 9px;font-family:var(--mono);font-size:12px}
 .waddgrid button{background:var(--blue);border:none;color:#fff;padding:9px;border-radius:6px;font-family:var(--mono);font-size:11px;letter-spacing:1px;cursor:pointer}
 .wsec{font-family:var(--mono);font-size:9.5px;letter-spacing:1.5px;color:var(--muted);margin:18px 0 4px}
+.hrow{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--line-soft);font-size:12px;line-height:1.45}
+.hrow .hk{flex:none;width:78px;color:#fff;font-family:var(--mono);font-size:10px;letter-spacing:.2px}
+.hrow .hv{color:var(--ink2)}.hrow .hv b{color:#fff}
+.kbd{font-family:var(--mono);font-size:10px;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:4px;padding:1px 5px;color:var(--ink2)}
+.tierchip{font-family:var(--mono);font-size:9px;letter-spacing:.5px;margin-right:3px}
 /* ---- command palette ---- */
 .cmdk{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.5);display:none;align-items:flex-start;justify-content:center;padding-top:12vh}
 .cmdk.open{display:flex}
@@ -531,6 +536,7 @@ h1{font-size:15px;letter-spacing:3px;color:#fff}h1 small{display:block;font-size
       <span class="srcpill" id="srcList">SOURCES · <b>…</b></span>
       <span class="netbtn analystbtn" id="analystBtn" title="Ask the VIGIL AI analyst">🛰 ANALYST</span>
       <span class="netbtn" id="briefBtn" title="Global &amp; regional intelligence brief">◇ BRIEF</span>
+      <span class="netbtn" id="helpBtn" title="How to use VIGIL">? HELP</span>
       <span class="netbtn" id="searchBtn" title="Search any country or actor  ( / )">⌕ SEARCH</span>
       <span class="netbtn" id="predictBtn" title="Predictive assessment — what's likely next">◎ PREDICT</span>
       <span class="netbtn" id="netBtn" title="Entity link analysis — actor & country co-occurrence graph">◈ NETWORK</span>
@@ -656,6 +662,49 @@ h1{font-size:15px;letter-spacing:3px;color:#fff}h1 small{display:block;font-size
 <aside class="wmodal" id="audmodal">
   <div class="wmhd"><h3>AUDIT LOG</h3><button class="wmx" id="audClose">✕</button></div>
   <div class="wmbody" style="padding:0"><div id="audList"></div></div>
+</aside>
+<!-- Help / how-to-use -->
+<aside class="wmodal" id="helpmodal">
+  <div class="wmhd"><h3>HOW TO USE VIGIL</h3><button class="wmx" id="helpClose">✕</button></div>
+  <div class="wmbody">
+    <div class="lead">VIGIL fuses open-source reporting — news wires, GDELT, Telegram OSINT and official feeds — into a live, per-country instability picture. Everything here is an <b>OSINT estimate</b>, not official confirmation; weigh it by the source confidence shown on each item.</div>
+
+    <div class="wsec">THE MAP</div>
+    <div class="hrow"><span class="hk">3D / 2D</span><span class="hv">Toggle the globe and the flat map (top-left). <b>Drag</b> to rotate or pan.</span></div>
+    <div class="hrow"><span class="hk">Zoom</span><span class="hv">Mouse wheel, or the <span class="kbd">+</span>/<span class="kbd">−</span> control; <span class="kbd">⌂</span> resets the view.</span></div>
+    <div class="hrow"><span class="hk">Clusters</span><span class="hv">A numbered circle groups that many nearby signals. <b>Click it</b> to zoom in and separate them.</span></div>
+    <div class="hrow"><span class="hk">Dossiers</span><span class="hv"><b>Click any country</b> or signal to open its intelligence dossier — score, drivers, forecast, feed.</span></div>
+    <div class="hrow"><span class="hk">Layers</span><span class="hv">The panel over the map toggles what's plotted: conflict, protests, hazards, military air, cyber, chokepoints…</span></div>
+
+    <div class="wsec">LEFT PANEL TABS</div>
+    <div class="hrow"><span class="hk">Index</span><span class="hv">Every country ranked by instability score (0–100).</span></div>
+    <div class="hrow"><span class="hk">Warnings</span><span class="hv">Named crisis scenarios, scored by how many of their warning indicators are currently tripped.</span></div>
+    <div class="hrow"><span class="hk">Converge</span><span class="hv">Cross-domain convergence — where several kinds of signal (armed + cyber + protest…) hit one country at once.</span></div>
+    <div class="hrow"><span class="hk">Hotspots</span><span class="hv">The most active geolocated signal concentrations right now.</span></div>
+    <div class="hrow"><span class="hk">Events</span><span class="hv">Fused intelligence events — clustered across sources and graded. Click one to open its dossier.</span></div>
+
+    <div class="wsec">READING THE SCORES</div>
+    <div class="hrow"><span class="hk">Tiers</span><span class="hv"><span class="tierchip" style="color:var(--blue)">WATCH</span>0–24 · <span class="tierchip" style="color:var(--warn)">ELEVATED</span>25–49 · <span class="tierchip" style="color:var(--orange)">SEVERE</span>50–74 · <span class="tierchip" style="color:var(--red)">CRITICAL</span>75–100</span></div>
+    <div class="hrow"><span class="hk">Forecast</span><span class="hv">In a dossier: <b>momentum</b> (points/day), <b>projection</b> (72h ahead) and <b>escalation risk</b>. Calm countries read near 0.</span></div>
+    <div class="hrow"><span class="hk">Confidence</span><span class="hv">How much corroboration backs the call — LOW with few sources, HIGH when many agree.</span></div>
+
+    <div class="wsec">SOURCE GRADING</div>
+    <div class="hrow"><span class="hk">Grades</span><span class="hv"><b>A</b> official/primary · <b>B</b> major outlet · <b>C</b> established monitor · <b>D</b> raw/unverified (e.g. Telegram).</span></div>
+    <div class="hrow"><span class="hk">Corrob.</span><span class="hv"><b>CONFIRMED</b> multiple independent sources · <b>PROBABLE</b> some corroboration · <b>1 SRC</b> single-source, treat with caution.</span></div>
+
+    <div class="wsec">TOOLS (TOP BAR)</div>
+    <div class="hrow"><span class="hk">🛰 Analyst</span><span class="hv">Ask VIGIL a question — it answers from the live retrieved reporting, with citations.</span></div>
+    <div class="hrow"><span class="hk">◇ Brief</span><span class="hv">A synthesized global or regional situation brief.</span></div>
+    <div class="hrow"><span class="hk">⌕ Search</span><span class="hv">Jump straight to any country or actor's dossier (<span class="kbd">/</span>).</span></div>
+    <div class="hrow"><span class="hk">◎ Predict</span><span class="hv">Ranked near-term predictions from the warning, forecast and convergence engines.</span></div>
+    <div class="hrow"><span class="hk">◈ Network</span><span class="hv">Link graph of how countries and actors co-occur across the reporting.</span></div>
+    <div class="hrow"><span class="hk">⚙ Watch</span><span class="hv">Define alert rules (e.g. score ≥ 80); enable <b>ALERTS</b> for browser notifications.</span></div>
+    <div class="hrow"><span class="hk">▤ Cases</span><span class="hv">Save investigations and generate reports.</span></div>
+    <div class="hrow"><span class="hk">Time bar</span><span class="hv"><span class="kbd">1h</span>–<span class="kbd">7d</span>/<span class="kbd">All</span> filters everything on screen by recency.</span></div>
+
+    <div class="wsec">CONFLICT WIRE</div>
+    <div class="hrow"><span class="hv" style="width:100%">The scrolling ticker along the bottom is the live multi-source wire — click any headline to open the original report.</span></div>
+  </div>
 </aside>
 <!-- Command palette / entity search -->
 <div class="cmdk" id="cmdk"><div class="cmdbox">
@@ -1117,7 +1166,7 @@ function zoomToCluster(lat,lon){
 // ---- intelligence dossier drawer ----
 const drawer=document.getElementById('drawer'),scrim=document.getElementById('scrim');
 function closeDossier(){drawer.classList.remove('open');scrim.classList.remove('open')}
-function closeModals(){['wmodal','audmodal','casemodal'].forEach(id=>{const m=document.getElementById(id);if(m)m.classList.remove('open');});}
+function closeModals(){['wmodal','audmodal','casemodal','helpmodal'].forEach(id=>{const m=document.getElementById(id);if(m)m.classList.remove('open');});}
 scrim.addEventListener('click',()=>{closeDossier();closeModals();});
 addEventListener('keydown',e=>{if(e.key==='Escape'){closeDossier();closeModals();}});
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
@@ -1316,6 +1365,8 @@ async function openAudit(){
   }catch(e){list.innerHTML='<div class="ph"><span class="m">unable to load audit log</span></div>';}
 }
 document.getElementById('audClose').addEventListener('click',()=>{document.getElementById('audmodal').classList.remove('open');document.getElementById('scrim').classList.remove('open');});
+document.getElementById('helpBtn').addEventListener('click',()=>{document.getElementById('helpmodal').classList.add('open');document.getElementById('scrim').classList.add('open');});
+document.getElementById('helpClose').addEventListener('click',()=>{document.getElementById('helpmodal').classList.remove('open');document.getElementById('scrim').classList.remove('open');});
 initAuth();
 
 // ================= VIGIL AI Analyst (chat) =================
