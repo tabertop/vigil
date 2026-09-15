@@ -536,13 +536,13 @@ h1{font-size:15px;letter-spacing:3px;color:#fff}h1 small{display:block;font-size
       <span class="srcpill" id="srcList">SOURCES · <b>…</b></span>
       <span class="netbtn analystbtn" id="analystBtn" title="Ask the VIGIL AI analyst">🛰 ANALYST</span>
       <span class="netbtn" id="briefBtn" title="Global &amp; regional intelligence brief">◇ BRIEF</span>
-      <span class="netbtn" id="helpBtn" title="How to use VIGIL">? HELP</span>
       <span class="netbtn" id="searchBtn" title="Search any country or actor  ( / )">⌕ SEARCH</span>
       <span class="netbtn" id="predictBtn" title="Predictive assessment — what's likely next">◎ PREDICT</span>
       <span class="netbtn" id="netBtn" title="Entity link analysis — actor & country co-occurrence graph">◈ NETWORK</span>
       <span class="bellpill" id="alertBell" title="Alert on new critical events & confirmed news"><span class="bico">🔕</span> ALERTS</span>
       <span class="bellpill" id="watchBtn" title="Watch conditions — analyst-defined alert rules">⚙ WATCH<span id="watchN" style="margin-left:4px;color:var(--blue)"></span></span>
       <span class="netbtn" id="casesBtn" title="Case files — investigations & report generation">▤ CASES<span id="casesN" style="margin-left:4px;color:var(--blue)"></span></span>
+      <span class="netbtn" id="helpBtn" title="How to use VIGIL">? HELP</span>
       <span class="clock" id="clock">--:--:-- <b>UTC</b></span>
       <span class="pill sample" id="srcPill"><span class="d"></span><span id="srcTxt">CONNECTING…</span></span>
       <span class="netbtn" id="auditBtn" title="Audit log (admin)" hidden>🗎 AUDIT</span>
@@ -669,6 +669,18 @@ h1{font-size:15px;letter-spacing:3px;color:#fff}h1 small{display:block;font-size
   <div class="wmbody">
     <div class="lead">VIGIL fuses open-source reporting — news wires, GDELT, Telegram OSINT and official feeds — into a live, per-country instability picture. Everything here is an <b>OSINT estimate</b>, not official confirmation; weigh it by the source confidence shown on each item.</div>
 
+    <div class="wsec">GETTING STARTED</div>
+    <div class="hrow"><span class="hk">1</span><span class="hv">Scan the <b>instability index</b> (left) and the globe for where things are worst right now.</span></div>
+    <div class="hrow"><span class="hk">2</span><span class="hv">Click a country, hotspot or event to open its <b>dossier</b> — the full picture for that place.</span></div>
+    <div class="hrow"><span class="hk">3</span><span class="hv">Ask the <b>🛰 Analyst</b> anything, or open <b>◇ Brief</b> for a written situation summary.</span></div>
+    <div class="hrow"><span class="hk">4</span><span class="hv">Set the <span class="kbd">1h</span>–<span class="kbd">7d</span> time filter to widen or narrow the window.</span></div>
+
+    <div class="wsec">STATUS INDICATORS</div>
+    <div class="hrow"><span class="hk">Threat</span><span class="hv">The <b>GLOBAL THREAT LEVEL</b> gauge and <b>THREATCON 1–5</b> (top-left) summarise worldwide instability — GUARDED up to CRITICAL.</span></div>
+    <div class="hrow"><span class="hk">Sources</span><span class="hv"><b>SOURCES · n LIVE</b> shows how many feeds are reporting; hover for the list.</span></div>
+    <div class="hrow"><span class="hk">Live</span><span class="hv">A green <b>LIVE</b> pill means fresh data; <b>SAMPLE</b> means the network is unreachable and bundled data is shown.</span></div>
+    <div class="hrow"><span class="hk">Clock</span><span class="hv">All timestamps are <b>UTC</b>.</span></div>
+
     <div class="wsec">THE MAP</div>
     <div class="hrow"><span class="hk">3D / 2D</span><span class="hv">Toggle the globe and the flat map (top-left). <b>Drag</b> to rotate or pan.</span></div>
     <div class="hrow"><span class="hk">Zoom</span><span class="hv">Mouse wheel, or the <span class="kbd">+</span>/<span class="kbd">−</span> control; <span class="kbd">⌂</span> resets the view.</span></div>
@@ -682,6 +694,14 @@ h1{font-size:15px;letter-spacing:3px;color:#fff}h1 small{display:block;font-size
     <div class="hrow"><span class="hk">Converge</span><span class="hv">Cross-domain convergence — where several kinds of signal (armed + cyber + protest…) hit one country at once.</span></div>
     <div class="hrow"><span class="hk">Hotspots</span><span class="hv">The most active geolocated signal concentrations right now.</span></div>
     <div class="hrow"><span class="hk">Events</span><span class="hv">Fused intelligence events — clustered across sources and graded. Click one to open its dossier.</span></div>
+
+    <div class="wsec">INSIDE A DOSSIER</div>
+    <div class="hrow"><span class="hk">Assessment</span><span class="hv">A plain-language read of the country's instability and what's driving it.</span></div>
+    <div class="hrow"><span class="hk">Trend</span><span class="hv">The 7-point sparkline shows the recent score trajectory and its peak.</span></div>
+    <div class="hrow"><span class="hk">Forecast</span><span class="hv">Momentum, 72h projection and escalation risk (see <b>Reading the scores</b>).</span></div>
+    <div class="hrow"><span class="hk">Indicators</span><span class="hv">Signals, mentions, reports and distinct sources behind the score.</span></div>
+    <div class="hrow"><span class="hk">Breakdown</span><span class="hv">How the score splits across Conflict, Unrest, Military and Humanitarian.</span></div>
+    <div class="hrow"><span class="hk">Actions</span><span class="hv">Star ★ to a watchlist, ask the analyst about it, or add it to a case file.</span></div>
 
     <div class="wsec">READING THE SCORES</div>
     <div class="hrow"><span class="hk">Tiers</span><span class="hv"><span class="tierchip" style="color:var(--blue)">WATCH</span>0–24 · <span class="tierchip" style="color:var(--warn)">ELEVATED</span>25–49 · <span class="tierchip" style="color:var(--orange)">SEVERE</span>50–74 · <span class="tierchip" style="color:var(--red)">CRITICAL</span>75–100</span></div>
@@ -701,6 +721,20 @@ h1{font-size:15px;letter-spacing:3px;color:#fff}h1 small{display:block;font-size
     <div class="hrow"><span class="hk">⚙ Watch</span><span class="hv">Define alert rules (e.g. score ≥ 80); enable <b>ALERTS</b> for browser notifications.</span></div>
     <div class="hrow"><span class="hk">▤ Cases</span><span class="hv">Save investigations and generate reports.</span></div>
     <div class="hrow"><span class="hk">Time bar</span><span class="hv"><span class="kbd">1h</span>–<span class="kbd">7d</span>/<span class="kbd">All</span> filters everything on screen by recency.</span></div>
+
+    <div class="wsec">ALERTS</div>
+    <div class="hrow"><span class="hk">🔔 Alerts</span><span class="hv">Toggle browser notifications for new critical events and confirmed breaking news.</span></div>
+    <div class="hrow"><span class="hk">⚙ Watch</span><span class="hv">Your own rules (score, convergence, rising trend, watchlist) fire alerts when met.</span></div>
+
+    <div class="wsec">DATA &amp; REFRESH</div>
+    <div class="hrow"><span class="hk">Refresh</span><span class="hv">The screen updates about every minute; sources are re-ingested roughly every 15 minutes.</span></div>
+    <div class="hrow"><span class="hk">Coverage</span><span class="hv">~150 feeds — GDELT, global news wires, Telegram OSINT, USGS/EONET hazards, ADS-B military air and cyber. Non-English headlines are filtered out.</span></div>
+    <div class="hrow"><span class="hk">Caveat</span><span class="hv">OSINT is noisy and occasionally wrong — corroborate before acting. The grades and confidence levels tell you how much to trust an item.</span></div>
+
+    <div class="wsec">SHORTCUTS</div>
+    <div class="hrow"><span class="hk"><span class="kbd">/</span></span><span class="hv">Open search to jump to any country or actor.</span></div>
+    <div class="hrow"><span class="hk">Wheel</span><span class="hv">Zoom the map in and out.</span></div>
+    <div class="hrow"><span class="hk">Drag</span><span class="hv">Rotate the globe / pan the map.</span></div>
 
     <div class="wsec">CONFLICT WIRE</div>
     <div class="hrow"><span class="hv" style="width:100%">The scrolling ticker along the bottom is the live multi-source wire — click any headline to open the original report.</span></div>
