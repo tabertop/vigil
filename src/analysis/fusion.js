@@ -77,11 +77,12 @@ export function fuseEvents(wire = [], now = Date.now()) {
       if (overlap(it.tok, c.tok) >= 2 && overlap(it.strong, c.strong) >= 1) { best = c; break; }
     }
     if (best) {
-      best.members.push(it.r); it.tok.forEach((t) => best.tok.add(t)); it.strong.forEach((t) => best.strong.add(t)); it.isos.forEach((i) => best.isos.add(i));
+      best.members.push(it.r); it.tok.forEach((t) => best.tok.add(t)); it.strong.forEach((t) => best.strong.add(t));
+      new Set(it.isos).forEach((i) => { best.isos.add(i); best.isoCount.set(i, (best.isoCount.get(i) || 0) + 1); });
       if ((it.r.publishedAt || 0) > (best.last || 0)) best.last = it.r.publishedAt;
       if ((it.r.publishedAt || 0) < (best.first || Infinity)) best.first = it.r.publishedAt;
     } else {
-      clusters.push({ rep: it.r, members: [it.r], tok: new Set(it.tok), strong: new Set(it.strong), isos: new Set(it.isos), first: it.r.publishedAt || now, last: it.r.publishedAt || now });
+      clusters.push({ rep: it.r, repIsos: [...new Set(it.isos)], members: [it.r], tok: new Set(it.tok), strong: new Set(it.strong), isos: new Set(it.isos), isoCount: new Map([...new Set(it.isos)].map((i) => [i, 1])), first: it.r.publishedAt || now, last: it.r.publishedAt || now });
     }
   }
 
@@ -97,7 +98,14 @@ export function fuseEvents(wire = [], now = Date.now()) {
       .map((m) => { const grade = sourceGrade(m.source, m.domain); return { source: m.source, domain: m.domain, title: m.title, url: m.url, grade, gradeLabel: GRADE_LABEL[grade], publishedAt: m.publishedAt, retrievedAt: m.retrievedAt }; });
     const distinctSrc = provenance.filter((p) => { if (seen.has(p.source)) return false; seen.add(p.source); return true; });
     const conf = assess(distinctSrc.map((p) => ({ source: p.source, domain: p.domain })));
-    const iso = [...c.isos][0];
+    // Rank the event's countries by centrality: the countries the REPRESENTATIVE
+    // (displayed) headline is actually about come first, then the rest by how many
+    // reports in the cluster mention them. The primary dossier (countries[0]) then
+    // matches the headline the analyst sees — instead of whatever country the newest
+    // report happened to list first, which was sending a US impeachment story to
+    // Yemen's dossier.
+    const ranked = [...new Set([...c.repIsos, ...[...c.isoCount.entries()].sort((a, b) => b[1] - a[1]).map((e) => e[0])])];
+    const iso = ranked[0];
     const country = iso ? countryByIso(iso) : null;
     const ageH = (now - (c.last || now)) / 3.6e6;
     const recency = Math.max(0, 3 - ageH / 8);
@@ -109,7 +117,7 @@ export function fuseEvents(wire = [], now = Date.now()) {
       title: c.rep.title,
       url: c.rep.url,
       lead: c.rep.source,
-      countries: [...c.isos].slice(0, 5),
+      countries: ranked.slice(0, 5),
       lat: country ? country.lat : null,
       lon: country ? country.lon : null,
       place: country ? country.name : null,

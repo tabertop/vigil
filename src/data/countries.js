@@ -53,7 +53,7 @@ const CURATED = [
   { iso: 'GE', name: 'Georgia', lat: 41.72, lon: 44.79, aliases: ['tbilisi', 'abkhazia'] },
   { iso: 'RS', name: 'Serbia', lat: 44.79, lon: 20.45, aliases: ['belgrade', 'serbian'] },
   { iso: 'XK', name: 'Kosovo', lat: 42.67, lon: 21.17, aliases: ['pristina', 'kosovar'] },
-  { iso: 'US', name: 'United States', lat: 38.9, lon: -77.04, aliases: ['american', 'washington', 'pentagon', 'u.s.', 'usa'] },
+  { iso: 'US', name: 'United States', lat: 38.9, lon: -77.04, aliases: ['american', 'washington', 'pentagon', 'u.s.', 'usa', 'trump', 'hegseth', 'white house', 'capitol hill'] },
   { iso: 'GB', name: 'United Kingdom', lat: 51.51, lon: -0.13, aliases: ['britain', 'british', 'london', 'uk'] },
   { iso: 'FR', name: 'France', lat: 48.86, lon: 2.35, aliases: ['french', 'paris'] },
   { iso: 'DE', name: 'Germany', lat: 52.52, lon: 13.4, aliases: ['german', 'berlin'] },
