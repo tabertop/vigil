@@ -286,7 +286,13 @@ const server = createServer(async (req, res) => {
   file = file.replace(/\.\./g, ''); // basic traversal guard
   try {
     const buf = await readFile(join(PUBLIC, file));
-    res.writeHead(200, { 'content-type': MIME[extname(file)] || 'application/octet-stream' });
+    const ext = extname(file);
+    // Never let browsers serve a stale app shell: the frontend is a single, frequently
+    // redeployed HTML file (with all JS/CSS inline), so a cached copy shows an old build
+    // — which on a phone meant the pre-mobile layout ("nothing works on mobile"). Force
+    // revalidation on HTML; keep other static assets briefly cached.
+    const cache = ext === '.html' ? 'no-cache, no-store, must-revalidate' : 'no-cache';
+    res.writeHead(200, { 'content-type': MIME[ext] || 'application/octet-stream', 'cache-control': cache });
     res.end(buf);
   } catch {
     res.writeHead(404, { 'content-type': 'text/plain' });
