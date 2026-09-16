@@ -505,6 +505,32 @@ h1{font-size:15px;letter-spacing:3px;color:#fff}h1 small{display:block;font-size
 .fsrc.rss{color:var(--aqua);border-color:rgba(25,158,112,.35)}
 .ft{font-size:12px;line-height:1.4;color:var(--ink2)}
 .dfoot{font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:18px;padding-top:10px;border-top:1px solid var(--line-soft);line-height:1.6}
+/* ===== Mobile pass (desktop untouched — everything below a phone/small-tablet breakpoint) ===== */
+.paneltoggle{display:none;position:fixed;left:12px;top:78px;z-index:31;align-items:center;gap:6px;padding:7px 12px;border-radius:20px;border:1px solid var(--line);background:rgba(13,13,13,.82);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:var(--ink2);font-family:var(--mono);font-size:11px;letter-spacing:.5px;cursor:pointer}
+.paneltoggle:active{color:#fff;border-color:var(--muted)}
+@media (max-width:820px){
+  .main{grid-template-columns:1fr}
+  /* left intel panel becomes a slide-in drawer, toggled by the ☰ INTEL button */
+  .panel{position:fixed;top:0;left:0;bottom:0;width:min(340px,88vw);z-index:36;transform:translateX(-102%);transition:transform .28s cubic-bezier(.2,.7,.2,1);box-shadow:24px 0 60px rgba(0,0,0,.6)}
+  .panel.open{transform:none}
+  /* right-side drawers (dossier, help, watch, cases, audit) go full-width and slide
+     via transform — avoids right:0/vw resolving off-screen on a phone viewport */
+  .drawer,.wmodal{left:0;right:0;width:auto}
+  .paneltoggle{display:inline-flex}
+  /* header: tighter, buttons become a horizontally-swipeable toolbar */
+  .top{gap:8px;padding:0 10px}
+  h1{font-size:13px;letter-spacing:2px}h1 small{display:none}
+  .status{flex:1;min-width:0;gap:8px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .status::-webkit-scrollbar{display:none}
+  .clock{display:none}
+  .classbar{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:8px}
+  /* map overlays: drop the legend, shrink/reposition the rest so they don't bury the map */
+  .legend{display:none}
+  .layers{max-height:34vh;min-width:148px;font-size:10px;bottom:42px;left:12px}
+  .timebar{top:8px}
+  .zoomctl{top:8px;right:12px}
+  #globe{touch-action:none}
+}
 </style>
 </head>
 <body>
@@ -583,6 +609,7 @@ h1{font-size:15px;letter-spacing:3px;color:#fff}h1 small{display:block;font-size
     </aside>
     <div class="center">
       <canvas id="globe"></canvas>
+      <button id="panelToggle" class="paneltoggle" title="Show / hide the intel panel">☰ INTEL</button>
       <div class="grid-bg"></div>
       <div class="timebar" id="timebar"><button data-w="1h">1h</button><button data-w="6h">6h</button><button data-w="24h" class="on">24h</button><button data-w="48h">48h</button><button data-w="7d">7d</button><button data-w="all">All</button></div>
       <div class="zoomctl" id="zoomctl"><button data-z="in">+</button><button data-z="out">−</button><button data-z="home">⌂</button></div>
@@ -1202,6 +1229,49 @@ const drawer=document.getElementById('drawer'),scrim=document.getElementById('sc
 function closeDossier(){drawer.classList.remove('open');scrim.classList.remove('open')}
 function closeModals(){['wmodal','audmodal','casemodal','helpmodal'].forEach(id=>{const m=document.getElementById(id);if(m)m.classList.remove('open');});}
 scrim.addEventListener('click',()=>{closeDossier();closeModals();});
+
+// ===== Mobile pass: 2D default · slide-in intel drawer · touch map controls =====
+(function(){
+  const mq=window.matchMedia('(max-width:820px)');
+  const panelEl=document.querySelector('.panel');
+  const pToggle=document.getElementById('panelToggle');
+  const scrimEl=document.getElementById('scrim');
+  const closePanel=()=>{panelEl.classList.remove('open');
+    if(!document.getElementById('drawer').classList.contains('open')&&!document.querySelector('.wmodal.open'))scrimEl.classList.remove('open');};
+  const openPanel=()=>{panelEl.classList.add('open');scrimEl.classList.add('open');};
+  if(pToggle)pToggle.addEventListener('click',()=>panelEl.classList.contains('open')?closePanel():openPanel());
+  scrimEl.addEventListener('click',closePanel);
+  // tapping anything that opens a dossier dismisses the drawer so the map/dossier shows
+  panelEl.addEventListener('click',e=>{if(mq.matches&&e.target.closest('.irow,.row,.ev,.cnode,.story,.wb-item'))closePanel();});
+
+  // Default to the 2D map on phones — easier to read and pan than a small globe.
+  function defaultView(){if(mq.matches&&view==='3d'){view='2d';
+    document.querySelectorAll('#viewtog button').forEach(x=>x.classList.toggle('on',x.dataset.v==='2d'));
+    const cii=document.getElementById('ciiScale');if(cii)cii.style.display='';updateZoomCtl();resize();}}
+  defaultView();
+  if(mq.addEventListener)mq.addEventListener('change',defaultView);
+
+  // Touch controls: 1-finger drag = rotate(3D)/pan(2D), 2-finger = pinch-zoom, tap =
+  // open dossier. preventDefault owns the gesture so the page doesn't scroll/zoom and
+  // no synthetic mouse events double-fire. Desktop mouse handlers are untouched.
+  let pinch=null;
+  cv.addEventListener('touchstart',ev=>{
+    if(ev.touches.length===1){const t=ev.touches[0];dragging=true;didDrag=false;lastX=downX=t.clientX;lastY=downY=t.clientY;if(view==='3d'){focusTarget=null;tiltTarget=null;}pinch=null;}
+    else if(ev.touches.length>=2){dragging=false;const a=ev.touches[0],b=ev.touches[1];pinch={d:Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY)};}
+    ev.preventDefault();
+  },{passive:false});
+  cv.addEventListener('touchmove',ev=>{
+    ev.preventDefault();
+    if(pinch&&ev.touches.length>=2){const a=ev.touches[0],b=ev.touches[1];const d=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);const f=d/(pinch.d||d);if(view==='3d')globeZoomBy(f);else zoomBy(f);pinch.d=d;didDrag=true;return;}
+    if(dragging&&ev.touches.length===1){const t=ev.touches[0],dx=t.clientX-lastX,dy=t.clientY-lastY;if(Math.hypot(t.clientX-downX,t.clientY-downY)>8)didDrag=true;if(view==='3d'){ang+=dx*0.006;tilt=clampTilt(tilt+dy*0.006);}else{map2d.x+=dx;map2d.y+=dy;}lastX=t.clientX;lastY=t.clientY;}
+  },{passive:false});
+  cv.addEventListener('touchend',ev=>{
+    if(dragging&&!didDrag&&ev.changedTouches.length){const r=cv.getBoundingClientRect(),t=ev.changedTouches[0],mx=t.clientX-r.left,my=t.clientY-r.top;let hit=false;
+      for(const q of proj){if(q&&Math.hypot(q.x-mx,q.y-my)<14){if(q.cluster)zoomToCluster(q.lat,q.lon);else openDossier({place:q.e.place});hit=true;break;}}
+      if(!hit){const l=screenToLatLon(mx,my);if(l){const c=countryAt(l.lat,l.lon);if(c)openDossier({iso:c.i});}}}
+    dragging=false;pinch=null;
+  },{passive:false});
+})();
 addEventListener('keydown',e=>{if(e.key==='Escape'){closeDossier();closeModals();}});
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 // ---- global threat level gauge ----
