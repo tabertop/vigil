@@ -1077,7 +1077,7 @@ function renderLayers(now){
         let sx=0,sy=0,mi=0,depth=1; for(const p of cell){ sx+=p.q.x; sy+=p.q.y; mi=Math.max(mi,p.it.intensity||0); depth=Math.max(depth,p.q.depth||1); }
         const cx2=sx/cell.length, cy2=sy/cell.length;
         drawCluster(cx2,cy2,cell.length,L.color,mi,depth);
-        proj.push({x:cx2,y:cy2,cluster:true,count:cell.length,lat:cell[0].it.lat,lon:cell[0].it.lon,e:{layer:L.id,color:L.color,place:cell.length+' '+L.label,sub:cell.length+' '+L.label+' clustered — click to zoom in'}});
+        proj.push({x:cx2,y:cy2,cluster:true,count:cell.length,lat:cell[0].it.lat,lon:cell[0].it.lon,members:cell.map(p=>p.it),e:{layer:L.id,color:L.color,place:cell.length+' '+L.label,sub:cell.length+' '+L.label+' clustered — click to open / zoom'}});
       }
     }
   }
@@ -1203,13 +1203,29 @@ function countryAt(lat,lon){
 }
 cv.addEventListener('click',ev=>{if(didDrag)return;const r=cv.getBoundingClientRect(),mx=ev.clientX-r.left,my=ev.clientY-r.top;
   for(const q of proj){if(q&&Math.hypot(q.x-mx,q.y-my)<12){
-    if(q.cluster){ zoomToCluster(q.lat,q.lon); return; }
+    if(q.cluster){ openClusterOrZoom(q); return; }
     openDossier({place:q.e.place});return}}
   // no marker hit → open the country under the cursor
   const ll=screenToLatLon(mx,my);if(!ll)return;const c=countryAt(ll.lat,ll.lon);if(c)openDossier({iso:c.i});});
 // clicking a cluster zooms/centres so it separates into individual markers.
 // On the 3D globe we switch to the 2D map and zoom into the spot, so the cluster
 // visibly "explodes" into the individual, clickable events.
+// Clicking a cluster: if its members are essentially at one spot (so zooming can never
+// separate them — e.g. several country-centroid US signals) or we're already zoomed
+// deep, open the strongest member's dossier instead of zooming forever. Otherwise zoom
+// in so the cluster breaks apart into individually-clickable markers.
+function openClusterOrZoom(q){
+  const m=q.members||[];
+  if(m.length){
+    const lats=m.map(i=>i.lat),lons=m.map(i=>i.lon);
+    const spread=Math.max(Math.max(...lats)-Math.min(...lats),Math.max(...lons)-Math.min(...lons));
+    if(spread<0.75 || (view==='2d' && map2d.z>=6.5)){
+      const top=m.slice().sort((a,b)=>((b.intensity||0)+(b.count||0))-((a.intensity||0)+(a.count||0)))[0];
+      if(top){ openDossier({place:top.place||top.label}); return; }
+    }
+  }
+  zoomToCluster(q.lat,q.lon);
+}
 function zoomToCluster(lat,lon){
   if(view==='3d'){
     view='2d';
@@ -1269,7 +1285,7 @@ scrim.addEventListener('click',()=>{closeDossier();closeModals();});
   },{passive:false});
   cv.addEventListener('touchend',ev=>{
     if(dragging&&!didDrag&&ev.changedTouches.length){const r=cv.getBoundingClientRect(),t=ev.changedTouches[0],mx=t.clientX-r.left,my=t.clientY-r.top;let hit=false;
-      for(const q of proj){if(q&&Math.hypot(q.x-mx,q.y-my)<14){if(q.cluster)zoomToCluster(q.lat,q.lon);else openDossier({place:q.e.place});hit=true;break;}}
+      for(const q of proj){if(q&&Math.hypot(q.x-mx,q.y-my)<14){if(q.cluster)openClusterOrZoom(q);else openDossier({place:q.e.place});hit=true;break;}}
       if(!hit){const l=screenToLatLon(mx,my);if(l){const c=countryAt(l.lat,l.lon);if(c)openDossier({iso:c.i});}}}
     dragging=false;pinch=null;
   },{passive:false});
