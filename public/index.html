@@ -961,6 +961,7 @@ const LAYERS=[
   {id:'chokepoints',label:'Chokepoints',      icon:'⚓', group:'MARITIME',  color:'#39d3e5', on:false, shape:'diamond'},
   {id:'tradeRoutes',label:'Trade routes',     icon:'🚢', group:'MARITIME',  color:'#2f8f9d', on:false, shape:'line'},
   {id:'aircraft',   label:'Military aircraft · ADS-B',icon:'✈',group:'MULTI-INT',color:'#6ee7ff',on:false,shape:'plane'},
+  {id:'civair',     label:'Civilian aircraft · ADS-B',icon:'🛩',group:'MULTI-INT',color:'#8a94a6',on:false,shape:'plane'},
   {id:'vessels',    label:'Vessels · AIS',    icon:'🚢', group:'MULTI-INT', color:'#7fb2e8', on:false, shape:'ship'},
   {id:'thermal',    label:'Thermal · FIRMS',  icon:'🔥', group:'MULTI-INT', color:'#ff5a3c', on:false, shape:'blip'},
   {id:'cyber',      label:'Cyber incidents',  icon:'⬢', group:'MULTI-INT', color:'#a371f7', on:false, shape:'square'},
@@ -976,7 +977,7 @@ const CHOKEPOINTS=[
 // live/reference data per layer, populated by refresh()/initReference()
 const LDATA={conflict:[],country:[],hotspots:[],protests:[],armedconflict:[],disasters:[],disease:[],natural:[],fires:[],storms:[],floods:[],volcanoes:[],drought:[],nuclear:[],military:[],spaceports:[],
   chokepoints:CHOKEPOINTS.map(c=>({lat:c.lat,lon:c.lon,label:c.name,place:c.name,sub:'Strategic chokepoint · click for brief'})),
-  tradeRoutes:[],aircraft:[],vessels:[],thermal:[],terror:[],cyber:[]};
+  tradeRoutes:[],aircraft:[],civair:[],vessels:[],thermal:[],terror:[],cyber:[]};
 const cv=document.getElementById('globe'),ctx=cv.getContext('2d');let W,H,cx,cy,R,Rbase,globeZoom=1;
 function resize(){const r=cv.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);cv.width=r.width*dpr;cv.height=r.height*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);W=r.width;H=r.height;cx=W/2;cy=H*0.47;Rbase=Math.min(W,H)*0.36;R=Rbase*globeZoom}
 addEventListener('resize',resize);resize();
@@ -1908,7 +1909,7 @@ async function openDossier(params){
   }catch(e){}
 }
 // A tapped map marker opens the right detail: aircraft → live ADS-B card; else dossier.
-function openMarker(e){ if(e&&e.layer==='aircraft'&&e.hex) openAircraft(e); else if(e&&e.place) openDossier({place:e.place}); }
+function openMarker(e){ if(e&&(e.layer==='aircraft'||e.layer==='civair')&&e.hex) openAircraft(e); else if(e&&e.place) openDossier({place:e.place}); }
 // Live ADS-B aircraft intel card (rendered from client-side data — no fetch, instant).
 function openAircraft(a){
   const fl=a.alt?('FL'+Math.round(a.alt/100)+' · '+a.alt.toLocaleString()+' ft'):(a.alt===0?'on ground':'—');
@@ -1919,7 +1920,7 @@ function openAircraft(a){
   <div class="dhead" style="--c:#3987e5">
     <div class="acicon">${a.emergency?'🚨':'✈'}</div>
     <div class="dhx"><div class="dtitle">${esc(a.callsign||a.label||a.hex||'Unknown')}</div>
-      <div class="dmeta">${esc(a.desc||a.type||'Military aircraft')}</div>
+      <div class="dmeta">${esc(a.desc||a.type||(a.military===false?'Civilian aircraft':'Military aircraft'))}</div>
       <div class="dbadges"><span class="tier" style="--c:#3987e5">${esc(a.role||'MILITARY').toUpperCase()}</span>${a.country?`<span class="conf">${esc(a.country)}</span>`:''}${a.emergency?`<span class="conf" style="color:#e5484d;border-color:#e5484d">⚠ ${esc(a.emergency)}</span>`:''}</div></div>
     <div class="dacts"><button class="dclose" id="dclose">✕</button></div>
   </div>
@@ -2123,7 +2124,7 @@ async function refresh(){
     hazards:J('/api/hazards'+qs), protests:J('/api/protests'+qs), armed:J('/api/armedconflict'+qs),
     disease:J('/api/disease'+qs), terror:J('/api/terror'+qs), correlation:J('/api/correlation'+qs),
     trends:J('/api/trends?hours=24'), fusion:J('/api/fusion'+qs), forecast:J('/api/forecast?horizon=72'),
-    aircraft:J('/api/aircraft'), vessels:J('/api/vessels'), thermal:J('/api/thermal'),
+    aircraft:J('/api/aircraft'), civair:J('/api/civair'), vessels:J('/api/vessels'), thermal:J('/api/thermal'),
     cyber:J('/api/cyber'), warnings:J('/api/warnings'+qs), threat:J('/api/threatlevel'+qs)
   };
   let C=[]; // instability index countries — shared across stages
@@ -2226,9 +2227,10 @@ async function refresh(){
 
   // ---- STAGE 2: extra point-feed layers (globe picks them up on its next frame) ----
   try{
-    const [aircraft,vessels,thermal,cyber,armed,disease,terror]=await Promise.all([
-      P.aircraft,P.vessels,P.thermal,P.cyber,P.armed,P.disease,P.terror]);
+    const [aircraft,civair,vessels,thermal,cyber,armed,disease,terror]=await Promise.all([
+      P.aircraft,P.civair,P.vessels,P.thermal,P.cyber,P.armed,P.disease,P.terror]);
     LDATA.aircraft=(aircraft||[]).map(a=>({...a})); // keep full ADS-B intel for the aircraft card
+    LDATA.civair=(civair||[]).map(a=>({...a}));     // civilian aircraft (separate layer)
     LDATA.vessels=(vessels||[]).map(v=>({lat:v.lat,lon:v.lon,intensity:v.intensity,label:v.label,place:v.place,sub:v.sub}));
     LDATA.thermal=(thermal||[]).map(t=>({lat:t.lat,lon:t.lon,intensity:t.intensity,label:t.label,place:t.place,sub:t.sub}));
     LDATA.cyber=(cyber||[]).map(c=>({lat:c.lat,lon:c.lon,intensity:c.intensity,label:c.label,place:c.place,sub:c.sub}));
@@ -2272,7 +2274,7 @@ async function refresh(){
     try{
     const critN=C.filter(c=>c.tier==='Critical').length;
     const topCrit=C.slice(0,3).map(c=>c.name).join(', ');
-    document.getElementById('wbAgo').textContent=windowSel+' · updated '+new Date().toUTCString().slice(17,22);
+    document.getElementById('wbAgo').textContent=windowSel+' · updated '+new Date().toLocaleTimeString('en-US',{timeZone:'America/New_York',hour:'2-digit',minute:'2-digit',hour12:false,timeZoneName:'short'});
     const wbItems=news.slice(0,5).map(s=>{const sc=s.sourceCount,cc=sc>=3?'wb-c3':sc>=2?'wb-c2':'wb-c1';
       return `<a class="wb-item" href="${esc(s.url)}" target="_blank" rel="noopener noreferrer"><span class="wb-cred ${cc}">${sc}<b>SRC</b></span><span class="wb-t">${esc(s.title)}</span></a>`;}).join('');
     document.getElementById('wbBody').innerHTML=

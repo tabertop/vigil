@@ -12,7 +12,7 @@ import { fetchEvents, fetchWire } from './sources/gdelt.js';
 import { fetchRss } from './sources/rss.js';
 import { fetchNatural } from './sources/usgs.js';
 import { fetchHazards } from './sources/hazards.js';
-import { fetchAircraft } from './sources/adsb.js';
+import { fetchAircraft, fetchCivAircraft } from './sources/adsb.js';
 import { fetchVessels } from './sources/ais.js';
 import { fetchFirms } from './sources/firms.js';
 import { fetchTelegram } from './sources/telegram.js';
@@ -25,13 +25,14 @@ export async function runIngest() {
   // Each source is wrapped so a single failure/timeout can NEVER abort the whole
   // ingest — the cycle always completes with whatever succeeded and records lastIngest.
   const safe = (p, fb) => Promise.resolve(p).then((v) => v || fb).catch((e) => { console.error('[ingest] source failed:', e && e.message); return fb; });
-  const [geo, doc, rss, natural, hazards, aircraft, vessels, firms, telegram, cyber] = await Promise.all([
+  const [geo, doc, rss, natural, hazards, aircraft, civair, vessels, firms, telegram, cyber] = await Promise.all([
     safe(fetchEvents('24h'), { events: [], live: false }),
     safe(fetchWire('24h'), { wire: [], live: false }),
     safe(fetchRss(), { geo: [], wire: [], live: false, sources: [] }),
     safe(fetchNatural(), { events: [], live: false }),
     safe(fetchHazards(), { events: [], live: false, sources: [] }),
     safe(fetchAircraft(), { events: [], live: false, sources: [] }),
+    safe(fetchCivAircraft(), { events: [], live: false, sources: [] }),
     safe(fetchVessels(), { events: [], live: false, sources: [] }),
     safe(fetchFirms(), { events: [], live: false, sources: [] }),
     safe(fetchTelegram(), { wire: [], live: false, sources: [] }),
@@ -41,6 +42,7 @@ export async function runIngest() {
   await setHazards(hazards.events);
   // multi-INT point feeds (ADS-B live; AIS/FIRMS live when keyed)
   setFeed('aircraft', aircraft.events);
+  setFeed('civair', civair.events);
   setFeed('vessels', vessels.events);
   setFeed('thermal', firms.events);
   setFeed('cyber', cyber.events);
@@ -80,6 +82,7 @@ export async function runIngest() {
   if (natural.live) sources.push('USGS');
   for (const s of hazards.sources) sources.push(s);
   for (const s of aircraft.sources) sources.push(s);
+  for (const s of civair.sources) sources.push(s);
   for (const s of vessels.sources) sources.push(s);
   for (const s of firms.sources) sources.push(s);
   for (const s of telegram.sources) sources.push(s);

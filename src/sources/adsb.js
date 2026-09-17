@@ -5,7 +5,8 @@
 // adsb.lol, then to empty on failure (never throws).
 
 const ENDPOINTS = ['https://opendata.adsb.fi/api/v2/mil', 'https://api.adsb.lol/v2/mil'];
-const UA = 'Mozilla/5.0 (compatible; VigilMonitor/1.0; +https://vigil.local)';
+// Browser UA — some ADS-B mirrors throttle bot UAs from datacenter IPs (as Telegram does).
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 
 // ICAO 24-bit address → country of registration (the operating nation). Ranges per
 // ICAO Annex 10; covers the militaries that fly ADS-B most. Returns { country, iso }.
@@ -87,44 +88,71 @@ export async function fetchAircraft() {
   if (!data || !Array.isArray(data.ac)) return { events: [], live: false, sources: [] };
 
   const now = Date.now();
-  const events = [];
-  for (const a of data.ac) {
-    if (typeof a.lat !== 'number' || typeof a.lon !== 'number') continue;
-    const role = roleOf(a.t, a.desc);
-    const call = (a.flight || a.r || a.hex || '').trim();
-    const nat = icaoCountry(a.hex) || {};
-    const alt = a.alt_baro === 'ground' ? 0 : (typeof a.alt_baro === 'number' ? a.alt_baro : null);
-    const heading = headingOf(typeof a.track === 'number' ? a.track : null);
-    const sq = a.squawk ? parseInt(a.squawk, 10) : null;
-    const emergency = (sq && EMERGENCY[sq]) || (a.emergency && a.emergency !== 'none' ? String(a.emergency).toUpperCase() : '') || '';
-    events.push({
-      id: 'air:' + a.hex,
-      lat: a.lat, lon: a.lon,
-      layer: 'aircraft',
-      label: call || a.hex,
-      place: call || a.hex,
-      role,
-      type: a.t || '',
-      desc: a.desc || '',                        // what it is (aircraft description)
-      hex: a.hex,                                 // ICAO 24-bit address
-      reg: (a.r || '').trim(),                    // registration / tail
-      callsign: (a.flight || '').trim(),
-      country: nat.country || '',                 // registration nation (who operates it)
-      iso: nat.iso || '',
-      operator: operatorOf(a.flight, nat.country),// best-effort operating unit
-      squawk: a.squawk || '',
-      emergency,                                  // 7500/7600/7700 or reported emergency
-      alt,
-      speed: typeof a.gs === 'number' ? Math.round(a.gs) : null,   // knots
-      track: typeof a.track === 'number' ? Math.round(a.track) : null, // degrees
-      heading,                                    // compass point (where it's pointed)
-      vsi: typeof a.baro_rate === 'number' ? a.baro_rate : null,   // climb/descent ft/min
-      category: a.category || '',
-      intensity: emergency ? 1 : role === 'Bomber' || role === 'ISR/Recon' ? 0.9 : role === 'Fighter' || role === 'Tanker' ? 0.7 : 0.45,
-      time: now,
-      source: 'ADS-B',
-      sub: `${a.desc || a.t || 'Military aircraft'} · ${role}${nat.country ? ' · ' + nat.country : ''}${alt ? ' · FL' + Math.round(alt / 100) : ''}${heading ? ' · hdg ' + heading : ''}${emergency ? ' · ⚠ ' + emergency : ''}`,
-    });
-  }
+  const events = data.ac.map((a) => normalize(a, now, 'aircraft')).filter(Boolean);
   return { events, live, sources: live ? ['ADS-B Military'] : [] };
+}
+
+// Civilian role from the ADS-B emitter category (A1 light … A5 heavy, A7 rotorcraft).
+function civRole(a) {
+  const c = (a.category || '').toUpperCase();
+  if (c === 'A7') return 'Helicopter';
+  if (c === 'A5' || c === 'A4') return 'Widebody';
+  if (c === 'A3') return 'Airliner';
+  if (c === 'A1' || c === 'A2') return 'Light';
+  if (/^(B7|A3|B73|B74|B75|B76|B77|B78|A32|A33|A34|A35)/.test((a.t || '').toUpperCase())) return 'Airliner';
+  return 'Civilian';
+}
+
+// Shared normaliser → the enriched aircraft record used by both the military and
+// civilian layers (so both get the same rich intel card).
+function normalize(a, now, layer) {
+  if (typeof a.lat !== 'number' || typeof a.lon !== 'number') return null;
+  const mil = layer === 'aircraft';
+  const role = mil ? roleOf(a.t, a.desc) : civRole(a);
+  const call = (a.flight || a.r || a.hex || '').trim();
+  const nat = icaoCountry(a.hex) || {};
+  const alt = a.alt_baro === 'ground' ? 0 : (typeof a.alt_baro === 'number' ? a.alt_baro : null);
+  const heading = headingOf(typeof a.track === 'number' ? a.track : null);
+  const sq = a.squawk ? parseInt(a.squawk, 10) : null;
+  const emergency = (sq && EMERGENCY[sq]) || (a.emergency && a.emergency !== 'none' ? String(a.emergency).toUpperCase() : '') || '';
+  const hi = mil ? (role === 'Bomber' || role === 'ISR/Recon' ? 0.9 : role === 'Fighter' || role === 'Tanker' ? 0.7 : 0.45) : 0.28;
+  return {
+    id: 'air:' + a.hex, lat: a.lat, lon: a.lon, layer,
+    label: call || a.hex, place: call || a.hex, role,
+    type: a.t || '', desc: a.desc || '', hex: a.hex, reg: (a.r || '').trim(), callsign: (a.flight || '').trim(),
+    country: nat.country || '', iso: nat.iso || '',
+    operator: mil ? operatorOf(a.flight, nat.country) : (a.ownOp || ''),
+    military: mil, squawk: a.squawk || '', emergency,
+    alt, speed: typeof a.gs === 'number' ? Math.round(a.gs) : null,
+    track: typeof a.track === 'number' ? Math.round(a.track) : null, heading,
+    vsi: typeof a.baro_rate === 'number' ? a.baro_rate : null, category: a.category || '',
+    intensity: emergency ? 1 : hi, time: now, source: 'ADS-B',
+    sub: `${a.desc || a.t || (mil ? 'Military aircraft' : 'Civilian aircraft')} · ${role}${nat.country ? ' · ' + nat.country : ''}${alt ? ' · FL' + Math.round(alt / 100) : ''}${heading ? ' · hdg ' + heading : ''}${emergency ? ' · ⚠ ' + emergency : ''}`,
+  };
+}
+
+// Civilian air traffic in strategic airspace — overflights/diversions near conflict
+// are themselves a signal. Point queries ({lat}/{lon}/{radius nm}); military excluded
+// via dbFlags (bit 0) since the global mil feed already covers it.
+const CIV_POINTS = [
+  [50.4, 30.5], [47.5, 37.5], [31.6, 34.6], [33.9, 35.5], [15, 43],
+  [26.5, 56.3], [24.5, 120], [37.5, 127], [44, 34], [34, 74],
+];
+const POINT_HOSTS = ['https://api.adsb.lol/v2/point/', 'https://opendata.adsb.fi/api/v2/point/'];
+export async function fetchCivAircraft() {
+  const now = Date.now(); const seen = new Set(); const events = []; let live = false;
+  for (const [lat, lon] of CIV_POINTS) {
+    let d = null;
+    for (const h of POINT_HOSTS) { d = await grab(h + lat + '/' + lon + '/250'); if (d && Array.isArray(d.ac)) break; }
+    if (!d || !Array.isArray(d.ac)) continue;
+    live = true;
+    for (const a of d.ac) {
+      if (a.dbFlags & 1) continue;                 // skip military (covered by the mil feed)
+      if (!a.hex || seen.has(a.hex)) continue; seen.add(a.hex);
+      const e = normalize(a, now, 'civair'); if (e) events.push(e);
+      if (events.length >= 400) break;
+    }
+    if (events.length >= 400) break;
+  }
+  return { events: events.slice(0, 400), live, sources: live ? ['ADS-B Civilian'] : [] };
 }

@@ -219,6 +219,7 @@ const server = createServer(async (req, res) => {
     return json(res, await buildBrief(region, { state: stateFor() }));
   }
   if (path === '/api/aircraft') return json(res, getFeed('aircraft'));
+  if (path === '/api/civair') return json(res, getFeed('civair'));
   if (path === '/api/vessels') return json(res, getFeed('vessels'));
   if (path === '/api/thermal') return json(res, getFeed('thermal'));
   if (path === '/api/cyber') return json(res, getFeed('cyber'));
