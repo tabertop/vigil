@@ -223,6 +223,21 @@ export const FEEDS = [
   // Disasters / hazards
   { name: 'FloodList', url: 'https://floodlist.com/feed', domain: 'floodlist.com' },
   { name: 'The Watchers', url: 'https://watchers.news/feed/', domain: 'watchers.news' },
+  // --- probed-live batch (gap-fill: DPRK, Central Asia, Myanmar, Cambodia, maritime,
+  //     cyber, think tanks) — each verified returning recent English items before adding ---
+  { name: 'NK News', url: 'https://www.nknews.org/feed/', domain: 'nknews.org' },
+  { name: '38 North', url: 'https://www.38north.org/feed/', domain: '38north.org' },
+  { name: 'Times of Central Asia', url: 'https://timesca.com/feed/', domain: 'timesca.com' },
+  { name: 'Astana Times', url: 'https://astanatimes.com/feed/', domain: 'astanatimes.com' },
+  { name: 'Myanmar Now', url: 'https://myanmar-now.org/en/feed/', domain: 'myanmar-now.org' },
+  { name: 'Khmer Times', url: 'https://www.khmertimeskh.com/feed/', domain: 'khmertimeskh.com' },
+  { name: 'Prensa Latina', url: 'https://www.plenglish.com/feed/', domain: 'plenglish.com' },
+  { name: 'gCaptain', url: 'https://gcaptain.com/feed/', domain: 'gcaptain.com' },
+  { name: 'Security Affairs', url: 'https://securityaffairs.com/feed', domain: 'securityaffairs.com' },
+  { name: 'ECFR', url: 'https://ecfr.eu/feed/', domain: 'ecfr.eu' },
+  { name: 'Stimson Center', url: 'https://www.stimson.org/feed/', domain: 'stimson.org' },
+  { name: 'Eurasia Review', url: 'https://www.eurasiareview.com/feed/', domain: 'eurasiareview.com' },
+  { name: 'Modern Diplomacy', url: 'https://moderndiplomacy.eu/feed/', domain: 'moderndiplomacy.eu' },
 ];
 
 // ---- tiny, tolerant feed parser (no XML dependency) ----
