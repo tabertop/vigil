@@ -255,6 +255,16 @@ h1{font-size:15px;letter-spacing:3px;color:#fff}h1 small{display:block;font-size
 .hrow .hv{color:var(--ink2)}.hrow .hv b{color:#fff}
 .kbd{font-family:var(--mono);font-size:10px;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:4px;padding:1px 5px;color:var(--ink2)}
 .tierchip{font-family:var(--mono);font-size:9px;letter-spacing:.5px;margin-right:3px}
+/* alerts log */
+.alertn{margin-left:5px;min-width:15px;height:15px;padding:0 4px;border-radius:8px;background:var(--red);color:#fff;font-family:var(--mono);font-size:9px;font-weight:700;display:none;align-items:center;justify-content:center}
+.alertn.on{display:inline-flex}
+.aswitch{display:flex;align-items:center;gap:7px;margin-top:10px;font-family:var(--mono);font-size:10.5px;letter-spacing:.3px;color:var(--ink2);cursor:pointer}
+.aswitch input{accent-color:var(--blue);width:15px;height:15px;cursor:pointer}
+.alogrow{display:flex;gap:10px;padding:11px 2px;border-bottom:1px solid var(--line-soft)}
+.alogrow .alt{flex:1}
+.alogrow .altt{font-size:12.5px;color:var(--ink);line-height:1.35}
+.alogrow .altb{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.4}
+.alogrow .alag{flex:none;font-family:var(--mono);font-size:9px;color:var(--muted);white-space:nowrap;padding-top:2px}
 /* ---- command palette ---- */
 .cmdk{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.5);display:none;align-items:flex-start;justify-content:center;padding-top:12vh}
 .cmdk.open{display:flex}
@@ -608,7 +618,7 @@ h1{font-size:15px;letter-spacing:3px;color:#fff}h1 small{display:block;font-size
       <span class="netbtn" id="searchBtn" title="Search any country or actor  ( / )">⌕ SEARCH</span>
       <span class="netbtn" id="predictBtn" title="Predictive assessment — what's likely next">◎ PREDICT</span>
       <span class="netbtn" id="netBtn" title="Entity link analysis — actor & country co-occurrence graph">◈ NETWORK</span>
-      <span class="bellpill" id="alertBell" title="Alert on new critical events & confirmed news"><span class="bico">🔕</span> ALERTS</span>
+      <span class="bellpill" id="alertBell" title="Alerts log — new critical escalations & confirmed news"><span class="bico">🔕</span> ALERTS<span class="alertn" id="alertN"></span></span>
       <span class="bellpill" id="watchBtn" title="Watch conditions — analyst-defined alert rules">⚙ WATCH<span id="watchN" style="margin-left:4px;color:var(--blue)"></span></span>
       <span class="netbtn" id="casesBtn" title="Case files — investigations & report generation">▤ CASES<span id="casesN" style="margin-left:4px;color:var(--blue)"></span></span>
       <span class="netbtn" id="helpBtn" title="How to use VIGIL">? HELP</span>
@@ -708,6 +718,16 @@ h1{font-size:15px;letter-spacing:3px;color:#fff}h1 small{display:block;font-size
   <div class="repdoc"><div class="briefwrap" id="briefDoc"></div></div>
 </div>
 <!-- VIGIL AI Analyst chat panel -->
+<!-- Alerts log -->
+<aside class="wmodal" id="alertmodal">
+  <div class="wmhd"><h3>ALERTS</h3><button class="wmx" id="alertClose">✕</button></div>
+  <div class="wmbody">
+    <div class="lead">New <b style="color:var(--red)">Critical</b> escalations and <b>confirmed</b> multi-source breaking news, logged as they fire while VIGIL is open.
+      <label class="aswitch"><input type="checkbox" id="alertToggle"> Browser notifications</label>
+    </div>
+    <div id="alertLogList"></div>
+  </div>
+</aside>
 <aside class="analyst" id="analystPanel">
   <div class="ahd">
     <span class="atitle">🛰 VIGIL ANALYST</span>
@@ -1310,7 +1330,7 @@ function zoomToCluster(lat,lon){
 // ---- intelligence dossier drawer ----
 const drawer=document.getElementById('drawer'),scrim=document.getElementById('scrim');
 function closeDossier(){drawer.classList.remove('open');scrim.classList.remove('open')}
-function closeModals(){['wmodal','audmodal','casemodal','helpmodal'].forEach(id=>{const m=document.getElementById(id);if(m)m.classList.remove('open');});}
+function closeModals(){['wmodal','audmodal','casemodal','helpmodal','alertmodal'].forEach(id=>{const m=document.getElementById(id);if(m)m.classList.remove('open');});}
 scrim.addEventListener('click',()=>{closeDossier();closeModals();});
 
 // ===== Mobile app shell: bottom-tab navigation · 2D default · touch map controls =====
@@ -1983,24 +2003,30 @@ function briefMarkdown(d){const b=d.brief||{},m=d.metrics||{},f=d.facts;
 
 function ago(ts){if(!ts)return'';const m=Math.max(0,(Date.now()-ts)/60000);if(m<60)return Math.round(m)+'m ago';const h=m/60;if(h<24)return Math.round(h)+'h ago';return Math.round(h/24)+'d ago';}
 
-// ---- browser alerts (Notifications API) — fires while the dashboard is open ----
+// ---- alerts: in-app toasts + OS notifications + a persistent, click-through log ----
 // alerts ON by default; only OFF if the user explicitly turned them off.
 let alertsOn=true;try{if(localStorage.getItem('vigil_alerts')==='0')alertsOn=false;}catch(e){}
-// note: alerts persist even without OS-notification permission — in-app toasts carry them.
 const seenStories=new Set();let seenCritical=new Set();let alertsSeeded=false;
-function paintBell(){const el=document.getElementById('alertBell');el.classList.toggle('on',alertsOn);el.querySelector('.bico').textContent=alertsOn?'🔔':'🔕';}
+// Persistent alert log so fired alerts accumulate ON the dashboard (survive refresh &
+// reload) instead of vanishing with the 7s toast — the ALERTS bell opens the log.
+let alertLog=[];try{alertLog=JSON.parse(localStorage.getItem('vigil_alertlog')||'[]');}catch(e){}
+let alertUnseen=0;try{alertUnseen=Math.min(+localStorage.getItem('vigil_alert_unseen')||0,alertLog.length);}catch(e){}
+function saveAlertLog(){try{localStorage.setItem('vigil_alertlog',JSON.stringify(alertLog.slice(0,120)));localStorage.setItem('vigil_alert_unseen',String(alertUnseen));}catch(e){}}
+function paintBell(){const el=document.getElementById('alertBell');el.classList.toggle('on',alertsOn);el.querySelector('.bico').textContent=alertsOn?'🔔':'🔕';const n=document.getElementById('alertN');if(n){n.textContent=alertUnseen>99?'99+':String(alertUnseen);n.classList.toggle('on',alertUnseen>0);}}
+function logAlert(title,body){alertLog.unshift({t:title,b:body||'',ts:Date.now()});if(alertLog.length>120)alertLog.length=120;alertUnseen=Math.min(alertUnseen+1,120);saveAlertLog();paintBell();if(document.getElementById('alertmodal').classList.contains('open'))renderAlertLog();}
+function renderAlertLog(){const el=document.getElementById('alertLogList');
+  el.innerHTML=alertLog.length?alertLog.map(a=>`<div class="alogrow"><div class="alt"><div class="altt">${esc(a.t)}</div>${a.b?`<div class="altb">${esc(a.b)}</div>`:''}</div><div class="alag">${ago(a.ts)}</div></div>`).join(''):'<div class="ph" style="padding:24px 2px"><span class="m">no alerts yet — new Critical escalations & confirmed breaking news appear here as they fire</span></div>';}
+function openAlerts(){document.getElementById('alertToggle').checked=alertsOn;renderAlertLog();alertUnseen=0;saveAlertLog();paintBell();document.getElementById('alertmodal').classList.add('open');document.getElementById('scrim').classList.add('open');}
 paintBell();
-document.getElementById('alertBell').addEventListener('click',async()=>{
-  if(alertsOn){alertsOn=false;try{localStorage.setItem('vigil_alerts','0');}catch(e){}paintBell();return;}
-  // Turn alerts ON regardless of OS-notification permission — in-app toasts always
-  // work (OS notifications are just an enhancement, and are blocked in some
-  // embedded/sandboxed contexts). Request permission opportunistically.
-  alertsOn=true;alertsSeeded=false;try{localStorage.setItem('vigil_alerts','1');}catch(e){}paintBell();
-  let granted=false;
-  if('Notification'in window){try{let p=Notification.permission;if(p==='default')p=await Notification.requestPermission();granted=(p==='granted');}catch(e){}}
-  toast('🔔 VIGIL alerts ON', granted?'Watching for new critical events, signals & confirmed news.':'In-app alerts active. (Enable browser notifications for desktop alerts.)');
+document.getElementById('alertBell').addEventListener('click',openAlerts);
+document.getElementById('alertClose').addEventListener('click',()=>{document.getElementById('alertmodal').classList.remove('open');if(!document.querySelector('.wmodal.open'))document.getElementById('scrim').classList.remove('open');});
+document.getElementById('alertToggle').addEventListener('change',async(e)=>{
+  alertsOn=e.target.checked;try{localStorage.setItem('vigil_alerts',alertsOn?'1':'0');}catch(err){}
+  if(alertsOn){alertsSeeded=false;if('Notification'in window){try{if(Notification.permission==='default')await Notification.requestPermission();}catch(err){}}}
+  paintBell();
 });
 function notify(title,body,onclick){
+  logAlert(title,body);       // persist to the alerts log (badge + panel)
   toast(title,body,onclick); // always show in-app
   try{if('Notification'in window&&Notification.permission==='granted'){const n=new Notification(title,{body,tag:title});n.onclick=()=>{window.focus();onclick&&onclick();n.close();};}}catch(e){}
 }
