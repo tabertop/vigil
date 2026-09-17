@@ -506,32 +506,70 @@ h1{font-size:15px;letter-spacing:3px;color:#fff}h1 small{display:block;font-size
 .ft{font-size:12px;line-height:1.4;color:var(--ink2)}
 .dfoot{font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:18px;padding-top:10px;border-top:1px solid var(--line-soft);line-height:1.6}
 /* ===== Mobile pass (desktop untouched — everything below a phone/small-tablet breakpoint) ===== */
-.paneltoggle{display:none;position:fixed;left:12px;top:78px;z-index:31;align-items:center;gap:6px;padding:7px 12px;border-radius:20px;border:1px solid var(--line);background:rgba(13,13,13,.82);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:var(--ink2);font-family:var(--mono);font-size:11px;letter-spacing:.5px;cursor:pointer}
-.paneltoggle:active{color:#fff;border-color:var(--muted)}
-/* Mobile layout targets actual touch devices only (pointer:coarse) — never a desktop
-   browser, even in a narrow window, so the desktop layout is guaranteed untouched. */
+.paneltoggle{display:none}
+/* mobile-only shell elements — hidden on desktop, activated in the media query below */
+.mnav,.mlayersbtn,.msheet,.mwrap{display:none}
+/* ================= MOBILE APP SHELL — touch devices only (pointer:coarse); desktop is
+   guaranteed untouched (a narrow desktop window never matches pointer:coarse). ================= */
 @media (max-width:820px) and (pointer:coarse){
-  .main{grid-template-columns:1fr}
-  /* left intel panel becomes a slide-in drawer, toggled by the ☰ INTEL button */
-  .panel{position:fixed;top:0;left:0;bottom:0;width:min(340px,88vw);z-index:36;transform:translateX(-102%);transition:transform .28s cubic-bezier(.2,.7,.2,1);box-shadow:24px 0 60px rgba(0,0,0,.6)}
-  .panel.open{transform:none}
-  /* right-side drawers (dossier, help, watch, cases, audit) go full-width and slide
-     via transform — avoids right:0/vw resolving off-screen on a phone viewport */
-  .drawer,.wmodal{left:0;right:0;width:auto}
-  .paneltoggle{display:inline-flex}
-  /* header: tighter, buttons become a horizontally-swipeable toolbar */
-  .top{gap:8px;padding:0 10px}
-  h1{font-size:13px;letter-spacing:2px}h1 small{display:none}
-  .status{flex:1;min-width:0;gap:8px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none}
-  .status::-webkit-scrollbar{display:none}
-  .clock{display:none}
-  .classbar{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:8px}
-  /* map overlays: drop the legend, shrink/reposition the rest so they don't bury the map */
-  .legend{display:none}
-  .layers{max-height:34vh;min-width:148px;font-size:10px;bottom:42px;left:12px}
-  .timebar{top:8px}
-  .zoomctl{top:8px;right:12px}
+  :root{--mnav:calc(58px + env(safe-area-inset-bottom))}
+  /* app is a vertical stack: top bar / view area / (fixed bottom tab bar) */
+  .app{display:flex;flex-direction:column;height:100dvh}
+  .top{flex:none;height:52px;gap:10px;padding:0 14px}
+  h1{font-size:15px;letter-spacing:2px}h1 small{display:none}
+  /* strip the desktop toolbar — those tools live in the bottom nav + the More sheet */
+  .status{margin-left:auto;gap:8px}
+  .status > *{display:none!important}
+  #srcPill{display:flex!important}
+  .classbar,.ticker,#panelToggle,.legend{display:none}
+
+  /* view area: Map (.center) is always laid out underneath so the canvas keeps its
+     size; Intel (.panel) and Wire (.mwrap) overlay it full-screen when their tab is on */
+  .main{flex:1;min-height:0;display:block;position:relative}
+  .center{position:absolute;inset:0 0 var(--mnav) 0}
   #globe{touch-action:none}
+  .panel,.mwrap{position:absolute;inset:0 0 var(--mnav) 0;z-index:6;background:var(--page);overflow-y:auto;-webkit-overflow-scrolling:touch;display:none}
+  body.mv-intel .panel{display:flex}
+  body.mv-wire .mwrap{display:block}
+  .panel .list{overflow:visible;flex:none}
+  .irow{padding:14px 16px}
+  .tab{padding:13px 3px;font-size:10px}
+
+  /* map controls */
+  .timebar{top:10px;font-size:11px}
+  .zoomctl{top:10px;right:12px}
+  .mlayersbtn{display:inline-flex;position:absolute;left:12px;bottom:12px;z-index:20;align-items:center;gap:6px;padding:9px 14px;border-radius:22px;border:1px solid var(--line);background:rgba(13,13,13,.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:var(--ink2);font-family:var(--mono);font-size:11px;letter-spacing:.5px;cursor:pointer}
+  /* layers → bottom sheet */
+  .layers{position:fixed;left:10px;right:10px;bottom:calc(var(--mnav) + 10px);top:auto;max-height:52vh;min-width:0;font-size:13px;transform:translateY(135%);transition:transform .28s cubic-bezier(.2,.7,.2,1);z-index:41}
+  .layers.mopen{transform:none}
+  .layers label{padding:8px 0;font-size:13px}
+  .layers input{width:18px;height:18px}
+
+  /* dossier + tool modals fill the screen; pad their scroll area so the last row
+     clears the fixed bottom tab bar */
+  .drawer,.wmodal{left:0;right:0;width:auto}
+  .drawer .dinner,.wmbody{padding-bottom:calc(var(--mnav) + 16px)}
+
+  /* bottom tab bar */
+  .mnav{display:flex;position:fixed;left:0;right:0;bottom:0;height:var(--mnav);z-index:45;background:linear-gradient(180deg,#161615,#0b0b0b);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);box-sizing:border-box}
+  .mnav button{flex:1;background:none;border:none;color:var(--muted);font-family:var(--mono);font-size:8px;letter-spacing:.5px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;padding:7px 0}
+  .mnav button .mni{font-size:19px;line-height:1}
+  .mnav button.on{color:var(--blue)}
+
+  /* wire feed view */
+  .mwtitle{font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--blue);padding:14px 16px 8px;position:sticky;top:0;background:var(--page);border-bottom:1px solid var(--line-soft);z-index:1}
+  #mwire a{display:block;padding:12px 16px;border-bottom:1px solid var(--line-soft);text-decoration:none;color:var(--ink2);font-size:13px;line-height:1.45}
+  #mwire a b{color:var(--blue);font-family:var(--mono);font-size:9.5px;letter-spacing:.5px;display:block;margin-bottom:4px}
+  #mwire a b.rss{color:var(--aqua)}
+
+  /* More sheet */
+  .msheet{display:block;position:fixed;left:0;right:0;bottom:0;z-index:47;background:linear-gradient(180deg,#161615,#0b0b0b);border-top:1px solid var(--line);border-radius:16px 16px 0 0;padding:8px 14px calc(18px + env(safe-area-inset-bottom));transform:translateY(118%);transition:transform .28s cubic-bezier(.2,.7,.2,1)}
+  .msheet.mopen{transform:none}
+  .msheet .mgrab{width:36px;height:4px;border-radius:2px;background:var(--line);margin:6px auto 12px}
+  .msheet .mgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .msheet .mgrid button{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:12px;color:var(--ink2);font-family:var(--mono);font-size:9.5px;letter-spacing:.3px;padding:15px 6px;display:flex;flex-direction:column;align-items:center;gap:7px;cursor:pointer}
+  .msheet .mgrid button .mgi{font-size:20px}
+  .msheet .mgrid button:active{border-color:var(--blue);color:#fff}
 }
 </style>
 </head>
@@ -619,6 +657,7 @@ h1{font-size:15px;letter-spacing:3px;color:#fff}h1 small{display:block;font-size
         <div class="lhd" id="layersHdr">LAYERS<span class="lcaret" id="lcaret">▾</span></div>
         <div id="layerList"></div>
       </div>
+      <button class="mlayersbtn" id="mlayersBtn">⧉ LAYERS</button>
       <div class="legend">
         <div class="lr"><i style="background:#d03b3b;box-shadow:0 0 7px #d03b3b"></i>High signal</div>
         <div class="lr"><i style="background:#fab219;box-shadow:0 0 7px #fab219"></i>Elevated</div>
@@ -627,8 +666,31 @@ h1{font-size:15px;letter-spacing:3px;color:#fff}h1 small{display:block;font-size
         <div class="cii" id="ciiScale" style="display:none"><span class="ciilbl">CII SCALE</span><div class="ciibar"></div><div class="ciiends"><span>0</span><span>100</span></div></div>
       </div>
     </div>
+      <div class="mwrap" id="mwrap"><div class="mwtitle">CONFLICT WIRE · LIVE</div><div id="mwire"></div></div>
   </div>
   <footer class="ticker"><div class="tkl">CONFLICT WIRE</div><div class="tkwrap"><div class="tkt" id="wire"></div></div></footer>
+  <nav class="mnav" id="mnav">
+    <button data-mv="map" class="on"><span class="mni">🗺️</span>Map</button>
+    <button data-mv="intel"><span class="mni">📊</span>Intel</button>
+    <button data-mv="wire"><span class="mni">📡</span>Wire</button>
+    <button data-mv="ask"><span class="mni">🛰️</span>Ask</button>
+    <button data-mv="more"><span class="mni">⋯</span>More</button>
+  </nav>
+</div>
+<div class="msheet" id="moreSheet">
+  <div class="mgrab"></div>
+  <div class="mgrid">
+    <button data-more="brief"><span class="mgi">◇</span>Brief</button>
+    <button data-more="predict"><span class="mgi">◎</span>Predict</button>
+    <button data-more="network"><span class="mgi">◈</span>Network</button>
+    <button data-more="search"><span class="mgi">⌕</span>Search</button>
+    <button data-more="watch"><span class="mgi">⚙</span>Watch</button>
+    <button data-more="alerts"><span class="mgi">🔔</span>Alerts</button>
+    <button data-more="cases"><span class="mgi">▤</span>Cases</button>
+    <button data-more="view"><span class="mgi">🌐</span>2D / 3D</button>
+    <button data-more="help"><span class="mgi">?</span>Help</button>
+    <button data-more="signout"><span class="mgi">⎋</span>Sign out</button>
+  </div>
 </div>
 <div class="scrim" id="scrim"></div>
 <aside class="drawer" id="drawer"><div class="dinner" id="dinner"></div></aside>
@@ -1248,26 +1310,37 @@ function closeDossier(){drawer.classList.remove('open');scrim.classList.remove('
 function closeModals(){['wmodal','audmodal','casemodal','helpmodal'].forEach(id=>{const m=document.getElementById(id);if(m)m.classList.remove('open');});}
 scrim.addEventListener('click',()=>{closeDossier();closeModals();});
 
-// ===== Mobile pass: 2D default · slide-in intel drawer · touch map controls =====
+// ===== Mobile app shell: bottom-tab navigation · 2D default · touch map controls =====
 (function(){
   const mq=window.matchMedia('(max-width:820px) and (pointer:coarse)');
-  const panelEl=document.querySelector('.panel');
-  const pToggle=document.getElementById('panelToggle');
-  const scrimEl=document.getElementById('scrim');
-  const closePanel=()=>{panelEl.classList.remove('open');
-    if(!document.getElementById('drawer').classList.contains('open')&&!document.querySelector('.wmodal.open'))scrimEl.classList.remove('open');};
-  const openPanel=()=>{panelEl.classList.add('open');scrimEl.classList.add('open');};
-  if(pToggle)pToggle.addEventListener('click',()=>panelEl.classList.contains('open')?closePanel():openPanel());
-  scrimEl.addEventListener('click',closePanel);
-  // tapping anything that opens a dossier dismisses the drawer so the map/dossier shows
-  panelEl.addEventListener('click',e=>{if(mq.matches&&e.target.closest('.irow,.row,.ev,.cnode,.story,.wb-item'))closePanel();});
+  const body=document.body, nav=document.getElementById('mnav'), moreSheet=document.getElementById('moreSheet'), layers=document.getElementById('layers');
+  const closeMore=()=>moreSheet.classList.remove('mopen');
+  const closeLayers=()=>layers.classList.remove('mopen');
+  // Map (.center) is always underneath; Intel (.panel) / Wire (.mwrap) overlay it.
+  function setView(v){ body.classList.remove('mv-map','mv-intel','mv-wire'); body.classList.add('mv-'+v);
+    nav.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.mv===v));
+    closeMore(); closeLayers(); if(v==='map') resize(); }
+  nav.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const v=b.dataset.mv;
+    if(v==='ask'){ closeMore(); closeLayers(); document.getElementById('analystBtn').click(); return; }
+    if(v==='more'){ closeLayers(); moreSheet.classList.toggle('mopen'); return; }
+    setView(v);
+  });
+  // More sheet → reuse the existing (desktop-hidden) controls
+  moreSheet.addEventListener('click',e=>{const b=e.target.closest('button[data-more]');if(!b)return;const a=b.dataset.more;closeMore();
+    const clk=id=>{const el=document.getElementById(id);if(el)el.click();};
+    ({brief:()=>clk('briefBtn'),predict:()=>clk('predictBtn'),network:()=>clk('netBtn'),search:()=>clk('searchBtn'),watch:()=>clk('watchBtn'),alerts:()=>clk('alertBell'),cases:()=>clk('casesBtn'),help:()=>clk('helpBtn'),signout:()=>clk('userChip'),view:()=>{const t=document.querySelector('#viewtog button[data-v="'+(view==='3d'?'2d':'3d')+'"]');if(t)t.click();}}[a]||(()=>{}))();
+  });
+  // Layers bottom sheet on the map
+  const mlb=document.getElementById('mlayersBtn'); if(mlb)mlb.addEventListener('click',()=>layers.classList.toggle('mopen'));
 
-  // Default to the 2D map on phones — easier to read and pan than a small globe.
-  function defaultView(){if(mq.matches&&view==='3d'){view='2d';
-    document.querySelectorAll('#viewtog button').forEach(x=>x.classList.toggle('on',x.dataset.v==='2d'));
-    const cii=document.getElementById('ciiScale');if(cii)cii.style.display='';updateZoomCtl();resize();}}
-  defaultView();
-  if(mq.addEventListener)mq.addEventListener('change',defaultView);
+  // Default to Map view + the 2D map on phones (a small globe is hard to read/pan).
+  function initMobile(){ if(!mq.matches)return;
+    if(view==='3d'){view='2d';document.querySelectorAll('#viewtog button').forEach(x=>x.classList.toggle('on',x.dataset.v==='2d'));const cii=document.getElementById('ciiScale');if(cii)cii.style.display='';updateZoomCtl&&updateZoomCtl();}
+    if(!/\bmv-(map|intel|wire)\b/.test(body.className))body.classList.add('mv-map');
+    resize();
+  }
+  initMobile();
+  if(mq.addEventListener)mq.addEventListener('change',initMobile);
 
   // Touch controls: 1-finger drag = rotate(3D)/pan(2D), 2-finger = pinch-zoom, tap =
   // open dossier. preventDefault owns the gesture so the page doesn't scroll/zoom and
@@ -1986,6 +2059,8 @@ async function refresh(){
         return out;
       };
       const w=diversify(wire,24).map(a=>`<a href="${a.url}" target="_blank" rel="noopener noreferrer"><b class="${cls(a)}">${label(a)}</b> — ${esc(a.title||'')}</a>`).join('');
+      // mobile Wire tab: a readable vertical feed from the same diversified wire
+      const mw=document.getElementById('mwire'); if(mw) mw.innerHTML=diversify(wire,60).map(a=>`<a href="${a.url}" target="_blank" rel="noopener noreferrer"><b class="${cls(a)}">${label(a)}</b>${esc(a.title||'')}</a>`).join('')||'<div class="ph" style="padding:22px 16px"><span class="m">no wire items in this window</span></div>';
       if(w){
         const wireEl=document.getElementById('wire');
         wireEl.innerHTML=w+w;
