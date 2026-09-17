@@ -131,32 +131,67 @@ function normalize(a, now, layer) {
   };
 }
 
-// Civilian air traffic in strategic airspace — overflights/diversions near conflict
-// are themselves a signal. Point queries ({lat}/{lon}/{radius nm}); military excluded
-// via dbFlags (bit 0) since the global mil feed already covers it.
-const CIV_POINTS = [
-  [50.4, 30.5], [47.5, 37.5], [31.6, 34.6], [33.9, 35.5], [15, 43],
-  [26.5, 56.3], [24.5, 120], [37.5, 127], [44, 34], [34, 74],
-];
-const POINT_HOSTS = ['https://api.adsb.lol/v2/point/', 'https://opendata.adsb.fi/api/v2/point/'];
-// The point feed carries no reliable military flag, so also drop obvious military
-// callsigns; the ingest hex cross-filter against the /mil feed catches the rest.
+// Obvious military callsigns to exclude from the civilian layer (the ingest hex
+// cross-filter against the /mil feed removes the rest).
 const MIL_CALLSIGN = /^(RCH|RRR|CFC|CANFORCE|GAF|FAF|CTM|COTAM|IAM|IAF|NATO|MMF|FORTE|HOMER|JAKE|GRZLY|REDEYE|POLAF|PLF|HKY|HAWK|EVAC|PAT|NAVY|CNV|VVUS|UAF|RSD|SAUDI|JAF|TUAF|TUR|ASY|AYB|SLAM|QID|SHELL|TOPCAT|VADER|BART)/;
+// OpenSky emitter category index → coarse civilian class.
+function openskyRole(c) {
+  if (c === 8) return 'Helicopter';
+  if (c === 6 || c === 5) return 'Widebody';
+  if (c === 4 || c === 3) return 'Airliner';
+  if (c === 2) return 'Light';
+  if (c === 7) return 'High-perf';
+  return 'Civilian';
+}
+const CIV_CAP = 1200; // plotted ceiling (the world has ~7-15k airborne at once)
+
+// Global civilian air picture from the OpenSky Network — one anonymous request returns
+// every aircraft broadcasting worldwide (with origin country), so unlike per-region
+// point queries it isn't rate-limited into showing "only a few". Military is removed by
+// callsign here and by hex cross-filter (vs the /mil feed) in ingest.
 export async function fetchCivAircraft() {
-  const now = Date.now(); const seen = new Set(); const events = []; let live = false;
-  for (const [lat, lon] of CIV_POINTS) {
-    let d = null;
-    for (const h of POINT_HOSTS) { d = await grab(h + lat + '/' + lon + '/250'); if (d && Array.isArray(d.ac)) break; }
-    if (!d || !Array.isArray(d.ac)) continue;
-    live = true;
-    for (const a of d.ac) {
-      if (a.dbFlags & 1) continue;                              // flagged military (when present)
-      if (MIL_CALLSIGN.test((a.flight || '').trim().toUpperCase())) continue; // military callsign
-      if (!a.hex || seen.has(a.hex)) continue; seen.add(a.hex);
-      const e = normalize(a, now, 'civair'); if (e) events.push(e);
-      if (events.length >= 400) break;
-    }
-    if (events.length >= 400) break;
+  const now = Date.now();
+  let j = null;
+  try {
+    const ctrl = new AbortController(); const to = setTimeout(() => ctrl.abort(), 20000);
+    const r = await fetch('https://opensky-network.org/api/states/all', { headers: { 'user-agent': UA, accept: 'application/json' }, signal: ctrl.signal });
+    clearTimeout(to);
+    if (r.ok) j = await r.json();
+  } catch { /* fall through to empty */ }
+  if (!j || !Array.isArray(j.states)) return { events: [], live: false, sources: [] };
+
+  const raw = [];
+  for (const s of j.states) {
+    const lon = s[5], lat = s[6];
+    if (typeof lat !== 'number' || typeof lon !== 'number' || s[8]) continue; // valid + airborne
+    const call = (s[1] || '').trim();
+    if (MIL_CALLSIGN.test(call.toUpperCase())) continue;
+    raw.push(s);
   }
-  return { events: events.slice(0, 400), live, sources: live ? ['ADS-B Civilian'] : [] };
+  // Even global sample so the map isn't biased to whatever order OpenSky returns.
+  const step = raw.length > CIV_CAP ? raw.length / CIV_CAP : 1;
+  const events = [];
+  for (let i = 0; i < raw.length && events.length < CIV_CAP; i += step) {
+    const s = raw[Math.floor(i)];
+    const hex = s[0], call = (s[1] || '').trim();
+    const alt = typeof s[7] === 'number' ? Math.round(s[7] * 3.281) : null;      // m → ft
+    const track = typeof s[10] === 'number' ? Math.round(s[10]) : null;
+    const heading = headingOf(track);
+    const sq = s[14] ? parseInt(s[14], 10) : null;
+    const emergency = (sq && EMERGENCY[sq]) || '';
+    const country = s[2] || (icaoCountry(hex) || {}).country || '';
+    const role = openskyRole(s[17]);
+    events.push({
+      id: 'civ:' + hex, lat: s[6], lon: s[5], layer: 'civair',
+      label: call || hex, place: call || hex, role,
+      type: '', desc: '', hex, reg: '', callsign: call,
+      country, iso: (icaoCountry(hex) || {}).iso || '', operator: '', military: false,
+      squawk: s[14] || '', emergency,
+      alt, speed: typeof s[9] === 'number' ? Math.round(s[9] * 1.944) : null,     // m/s → kt
+      track, heading, vsi: typeof s[11] === 'number' ? Math.round(s[11] * 196.85) : null, // m/s → ft/min
+      category: '', intensity: emergency ? 1 : 0.28, time: now, source: 'OpenSky',
+      sub: `Civilian · ${role}${country ? ' · ' + country : ''}${alt ? ' · FL' + Math.round(alt / 100) : ''}${heading ? ' · hdg ' + heading : ''}${emergency ? ' · ⚠ ' + emergency : ''}`,
+    });
+  }
+  return { events, live: true, sources: ['ADS-B Civilian (OpenSky)'] };
 }
