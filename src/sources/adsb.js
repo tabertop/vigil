@@ -154,7 +154,7 @@ async function openSkyCiv(now) {
     ? 'Basic ' + Buffer.from(process.env.OPENSKY_USER + ':' + process.env.OPENSKY_PASS).toString('base64') : null;
   let j = null;
   try {
-    const ctrl = new AbortController(); const to = setTimeout(() => ctrl.abort(), 20000);
+    const ctrl = new AbortController(); const to = setTimeout(() => ctrl.abort(), 9000);
     const headers = { 'user-agent': UA, accept: 'application/json' };
     if (auth) headers.authorization = auth;
     const r = await fetch('https://opensky-network.org/api/states/all', { headers, signal: ctrl.signal });
@@ -179,7 +179,7 @@ async function openSkyCiv(now) {
 
 // Fallback: per-region point queries (used only if OpenSky is unavailable). Spaced to
 // dodge rate limits. adsb.fi returns under key `aircraft`, adsb.lol under `ac`.
-const CIV_POINTS = [[50.4, 30.5], [31.6, 34.6], [26.5, 56.3], [24.5, 120], [37.5, 127], [51, 0], [40, -74], [1.3, 104], [35, 139], [-33, 151]];
+const CIV_POINTS = [[31.6, 34.6], [51, 0], [40, -74], [24.5, 120], [1.3, 104]];
 const CIV_HOSTS = [(la, lo) => `https://opendata.adsb.fi/api/v2/lat/${la}/lon/${lo}/dist/250`, (la, lo) => `https://api.adsb.lol/v2/point/${la}/${lo}/250`];
 async function pointCiv(now) {
   const seen = new Set(); const out = [];
@@ -198,7 +198,7 @@ async function pointCiv(now) {
       if (out.length >= CIV_CAP) break;
     }
     if (out.length >= CIV_CAP) break;
-    await sleep(1200);
+    await sleep(500);
   }
   return out;
 }
@@ -219,11 +219,20 @@ function civEvent(now, x) {
   };
 }
 
-export async function fetchCivAircraft() {
-  const now = Date.now();
+async function _fetchCiv(now) {
   let events = await openSkyCiv(now);
   let src = 'ADS-B Civilian (OpenSky)';
   if (!events.length) { events = await pointCiv(now); src = 'ADS-B Civilian'; }
   console.log(`[civair] ${events.length} civilian aircraft via ${events.length ? src : 'none (both sources unavailable)'}`);
   return { events, live: events.length > 0, sources: events.length ? [src] : [] };
+}
+// Hard 12s budget: the civilian feed must never stall the shared ingest Promise.all,
+// even if OpenSky and the fallback hosts are all slow/blocked from this host.
+export async function fetchCivAircraft() {
+  const now = Date.now();
+  let timer;
+  const budget = new Promise((res) => { timer = setTimeout(() => { console.warn('[civair] budget exceeded — skipping this cycle'); res({ events: [], live: false, sources: [] }); }, 12000); });
+  const result = await Promise.race([_fetchCiv(now), budget]);
+  clearTimeout(timer);
+  return result;
 }
