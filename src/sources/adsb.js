@@ -139,6 +139,9 @@ const CIV_POINTS = [
   [26.5, 56.3], [24.5, 120], [37.5, 127], [44, 34], [34, 74],
 ];
 const POINT_HOSTS = ['https://api.adsb.lol/v2/point/', 'https://opendata.adsb.fi/api/v2/point/'];
+// The point feed carries no reliable military flag, so also drop obvious military
+// callsigns; the ingest hex cross-filter against the /mil feed catches the rest.
+const MIL_CALLSIGN = /^(RCH|RRR|CFC|CANFORCE|GAF|FAF|CTM|COTAM|IAM|IAF|NATO|MMF|FORTE|HOMER|JAKE|GRZLY|REDEYE|POLAF|PLF|HKY|HAWK|EVAC|PAT|NAVY|CNV|VVUS|UAF|RSD|SAUDI|JAF|TUAF|TUR|ASY|AYB|SLAM|QID|SHELL|TOPCAT|VADER|BART)/;
 export async function fetchCivAircraft() {
   const now = Date.now(); const seen = new Set(); const events = []; let live = false;
   for (const [lat, lon] of CIV_POINTS) {
@@ -147,7 +150,8 @@ export async function fetchCivAircraft() {
     if (!d || !Array.isArray(d.ac)) continue;
     live = true;
     for (const a of d.ac) {
-      if (a.dbFlags & 1) continue;                 // skip military (covered by the mil feed)
+      if (a.dbFlags & 1) continue;                              // flagged military (when present)
+      if (MIL_CALLSIGN.test((a.flight || '').trim().toUpperCase())) continue; // military callsign
       if (!a.hex || seen.has(a.hex)) continue; seen.add(a.hex);
       const e = normalize(a, now, 'civair'); if (e) events.push(e);
       if (events.length >= 400) break;

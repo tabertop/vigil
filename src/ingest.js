@@ -41,8 +41,13 @@ export async function runIngest() {
   await setNatural(natural.events);
   await setHazards(hazards.events);
   // multi-INT point feeds (ADS-B live; AIS/FIRMS live when keyed)
+  // Keep the two aircraft layers strictly separate. The /mil feed is the authoritative
+  // global military set; the civilian point-query feed has no reliable military flag, so
+  // drop any civilian hex that appears in the military feed (belt-and-suspenders on top
+  // of the callsign filter in fetchCivAircraft).
+  const milHex = new Set((aircraft.events || []).map((e) => e.hex));
   setFeed('aircraft', aircraft.events);
-  setFeed('civair', civair.events);
+  setFeed('civair', (civair.events || []).filter((e) => e.hex && !milHex.has(e.hex)));
   setFeed('vessels', vessels.events);
   setFeed('thermal', firms.events);
   setFeed('cyber', cyber.events);
