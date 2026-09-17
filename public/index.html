@@ -265,6 +265,10 @@ h1{font-size:15px;letter-spacing:3px;color:#fff}h1 small{display:block;font-size
 .alogrow .altt{font-size:12.5px;color:var(--ink);line-height:1.35}
 .alogrow .altb{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.4}
 .alogrow .alag{flex:none;font-family:var(--mono);font-size:9px;color:var(--muted);white-space:nowrap;padding-top:2px}
+.alogrow.alnav{cursor:pointer;margin:0 -18px;padding-left:18px;padding-right:18px}
+.alogrow.alnav:hover{background:rgba(255,255,255,.03)}
+.alogrow.alnav:hover .altt{color:var(--blue)}
+.alopen{font-family:var(--mono);font-size:9px;letter-spacing:.5px;color:var(--blue);margin-left:4px}
 /* ---- command palette ---- */
 .cmdk{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.5);display:none;align-items:flex-start;justify-content:center;padding-top:12vh}
 .cmdk.open{display:flex}
@@ -1562,7 +1566,7 @@ function evalWatch(C){
     else if(r.type==='domain'){for(const a of CORR)if(a.domainCount>=r.val)fires.push({k:'dom:'+a.iso,t:'🔺 '+a.name+' — '+a.domainCount+' domains',b:a.domains.map(d=>d.label).join(' + '),iso:a.iso});}
   }
   if(!watchSeeded){fires.forEach(f=>watchFired.add(f.k));watchSeeded=true;return;}
-  let n=0;for(const f of fires){if(watchFired.has(f.k))continue;watchFired.add(f.k);if(n<6){notify('WATCH · '+f.t,f.b,()=>{if(f.iso)openDossier({iso:f.iso});});n++;}}
+  let n=0;for(const f of fires){if(watchFired.has(f.k))continue;watchFired.add(f.k);if(n<6){notify('WATCH · '+f.t,f.b,()=>{if(f.iso)openDossier({iso:f.iso});},f.iso?{iso:f.iso}:null);n++;}}
 }
 paintWatchN();
 
@@ -2013,9 +2017,13 @@ let alertLog=[];try{alertLog=JSON.parse(localStorage.getItem('vigil_alertlog')||
 let alertUnseen=0;try{alertUnseen=Math.min(+localStorage.getItem('vigil_alert_unseen')||0,alertLog.length);}catch(e){}
 function saveAlertLog(){try{localStorage.setItem('vigil_alertlog',JSON.stringify(alertLog.slice(0,120)));localStorage.setItem('vigil_alert_unseen',String(alertUnseen));}catch(e){}}
 function paintBell(){const el=document.getElementById('alertBell');el.classList.toggle('on',alertsOn);el.querySelector('.bico').textContent=alertsOn?'🔔':'🔕';const n=document.getElementById('alertN');if(n){n.textContent=alertUnseen>99?'99+':String(alertUnseen);n.classList.toggle('on',alertUnseen>0);}}
-function logAlert(title,body){alertLog.unshift({t:title,b:body||'',ts:Date.now()});if(alertLog.length>120)alertLog.length=120;alertUnseen=Math.min(alertUnseen+1,120);saveAlertLog();paintBell();if(document.getElementById('alertmodal').classList.contains('open'))renderAlertLog();}
+function logAlert(title,body,target){alertLog.unshift({t:title,b:body||'',ts:Date.now(),tg:target||null});if(alertLog.length>120)alertLog.length=120;alertUnseen=Math.min(alertUnseen+1,120);saveAlertLog();paintBell();if(document.getElementById('alertmodal').classList.contains('open'))renderAlertLog();}
 function renderAlertLog(){const el=document.getElementById('alertLogList');
-  el.innerHTML=alertLog.length?alertLog.map(a=>`<div class="alogrow"><div class="alt"><div class="altt">${esc(a.t)}</div>${a.b?`<div class="altb">${esc(a.b)}</div>`:''}</div><div class="alag">${ago(a.ts)}</div></div>`).join(''):'<div class="ph" style="padding:24px 2px"><span class="m">no alerts yet — new Critical escalations & confirmed breaking news appear here as they fire</span></div>';}
+  el.innerHTML=alertLog.length?alertLog.map(a=>{const tg=a.tg,nav=tg&&(tg.iso||tg.url);
+    return `<div class="alogrow${nav?' alnav':''}"${tg&&tg.iso?` data-iso="${esc(tg.iso)}"`:''}${tg&&tg.url?` data-url="${esc(tg.url)}"`:''}><div class="alt"><div class="altt">${esc(a.t)}${nav?' <span class="alopen">'+(tg.iso?'open dossier ▸':'open story ▸')+'</span>':''}</div>${a.b?`<div class="altb">${esc(a.b)}</div>`:''}</div><div class="alag">${ago(a.ts)}</div></div>`;}).join(''):'<div class="ph" style="padding:24px 2px"><span class="m">no alerts yet — new Critical escalations & confirmed breaking news appear here as they fire</span></div>';
+  el.querySelectorAll('.alogrow[data-iso]').forEach(r=>r.addEventListener('click',()=>{document.getElementById('alertClose').click();openDossier({iso:r.dataset.iso});}));
+  el.querySelectorAll('.alogrow[data-url]').forEach(r=>r.addEventListener('click',()=>window.open(r.dataset.url,'_blank','noopener')));
+}
 function openAlerts(){document.getElementById('alertToggle').checked=alertsOn;renderAlertLog();alertUnseen=0;saveAlertLog();paintBell();document.getElementById('alertmodal').classList.add('open');document.getElementById('scrim').classList.add('open');}
 paintBell();
 document.getElementById('alertBell').addEventListener('click',openAlerts);
@@ -2025,8 +2033,8 @@ document.getElementById('alertToggle').addEventListener('change',async(e)=>{
   if(alertsOn){alertsSeeded=false;if('Notification'in window){try{if(Notification.permission==='default')await Notification.requestPermission();}catch(err){}}}
   paintBell();
 });
-function notify(title,body,onclick){
-  logAlert(title,body);       // persist to the alerts log (badge + panel)
+function notify(title,body,onclick,target){
+  logAlert(title,body,target); // persist to the alerts log (badge + panel), with a click target
   toast(title,body,onclick); // always show in-app
   try{if('Notification'in window&&Notification.permission==='granted'){const n=new Notification(title,{body,tag:title});n.onclick=()=>{window.focus();onclick&&onclick();n.close();};}}catch(e){}
 }
@@ -2047,9 +2055,9 @@ function runAlerts(news,C){
   if(!alertsSeeded){conf.forEach(s=>seenStories.add(s.url));seenCritical=new Set(crit.map(c=>c.iso));alertsSeeded=true;return;}
   let fired=0;const watch=getWatch();
   const newCrit=crit.filter(c=>!seenCritical.has(c.iso)).sort((a,b)=>(watch.includes(b.iso)?1:0)-(watch.includes(a.iso)?1:0));
-  for(const c of newCrit){if(fired>=5)break;notify('🔴 '+c.name+' → CRITICAL '+c.score,(c.topPlace&&c.topPlace!==c.name?c.topPlace:'instability rising'),()=>openDossier({iso:c.iso}));fired++;}
+  for(const c of newCrit){if(fired>=5)break;notify('🔴 '+c.name+' → CRITICAL '+c.score,(c.topPlace&&c.topPlace!==c.name?c.topPlace:'instability rising'),()=>openDossier({iso:c.iso}),{iso:c.iso});fired++;}
   seenCritical=new Set(crit.map(c=>c.iso));
-  for(const s of conf){if(seenStories.has(s.url))continue;if(fired<7){notify('⚠ CONFIRMED · '+s.sourceCount+' sources',s.title,()=>window.open(s.url,'_blank'));fired++;}seenStories.add(s.url);}
+  for(const s of conf){if(seenStories.has(s.url))continue;if(fired<7){notify('⚠ CONFIRMED · '+s.sourceCount+' sources',s.title,()=>window.open(s.url,'_blank'),{url:s.url});fired++;}seenStories.add(s.url);}
 }
 
 async function refresh(){
