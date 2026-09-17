@@ -545,10 +545,13 @@ h1{font-size:15px;letter-spacing:3px;color:#fff}h1 small{display:block;font-size
   .layers label{padding:8px 0;font-size:13px}
   .layers input{width:18px;height:18px}
 
-  /* dossier + tool modals fill the screen; pad their scroll area so the last row
-     clears the fixed bottom tab bar */
-  .drawer,.wmodal{left:0;right:0;width:auto}
+  /* every full-screen overlay must sit ABOVE the bottom tab bar (z45) — otherwise the
+     nav covers their content and controls (e.g. the analyst's query box lives at the
+     bottom of its panel and was hidden behind the nav). Each has its own ✕ to close. */
+  .analyst,.drawer,.wmodal,.repov,.netov,.cmdk{z-index:50}
+  .drawer,.wmodal,.analyst{left:0;right:0;width:auto}
   .drawer .dinner,.wmbody{padding-bottom:calc(var(--mnav) + 16px)}
+  .ainputrow{padding-bottom:calc(12px + env(safe-area-inset-bottom))}
 
   /* bottom tab bar */
   .mnav{display:flex;position:fixed;left:0;right:0;bottom:0;height:var(--mnav);z-index:45;background:linear-gradient(180deg,#161615,#0b0b0b);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);box-sizing:border-box}
@@ -1358,7 +1361,12 @@ scrim.addEventListener('click',()=>{closeDossier();closeModals();});
   },{passive:false});
   cv.addEventListener('touchend',ev=>{
     if(dragging&&!didDrag&&ev.changedTouches.length){const r=cv.getBoundingClientRect(),t=ev.changedTouches[0],mx=t.clientX-r.left,my=t.clientY-r.top;let hit=false;
-      for(const q of proj){if(q&&Math.hypot(q.x-mx,q.y-my)<14){if(q.cluster)openClusterOrZoom(q);else openDossier({place:q.e.place});hit=true;break;}}
+      for(const q of proj){if(q&&Math.hypot(q.x-mx,q.y-my)<18){
+        // On touch, a tap on a cluster opens the top event's dossier (users pinch to
+        // zoom) — tapping "hotpoints" now always reaches a dossier instead of looping zoom.
+        if(q.cluster){const m=q.members||[];if(m.length){const top=m.slice().sort((a,b)=>((b.intensity||0)+(b.count||0))-((a.intensity||0)+(a.count||0)))[0];openDossier({place:top.place||top.label});}else openClusterOrZoom(q);}
+        else openDossier({place:q.e.place});
+        hit=true;break;}}
       if(!hit){const l=screenToLatLon(mx,my);if(l){const c=countryAt(l.lat,l.lon);if(c)openDossier({iso:c.i});}}}
     dragging=false;pinch=null;
   },{passive:false});
