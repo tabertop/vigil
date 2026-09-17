@@ -155,6 +155,7 @@ h1{font-size:15px;letter-spacing:3px;color:#fff}h1 small{display:block;font-size
 .facts>div{border:1px solid var(--line-soft);border-radius:6px;padding:7px 9px;background:rgba(255,255,255,.02)}
 .facts span{display:block;font-family:var(--mono);font-size:8.5px;letter-spacing:.5px;color:var(--muted);text-transform:uppercase}
 .facts b{color:#fff;font-size:12.5px}
+.acicon{width:48px;height:48px;flex:none;display:flex;align-items:center;justify-content:center;font-size:26px;border-radius:11px;background:rgba(57,135,229,.12);border:1px solid rgba(57,135,229,.4)}
 .irow.watched{box-shadow:inset 2px 0 0 var(--warn)}
 .irow.watched .iname::after{content:' ★';color:var(--warn);font-size:10px}
 /* ---- temporal trends (index rows + dossier) ---- */
@@ -1293,7 +1294,7 @@ function countryAt(lat,lon){
 cv.addEventListener('click',ev=>{if(didDrag)return;const r=cv.getBoundingClientRect(),mx=ev.clientX-r.left,my=ev.clientY-r.top;
   for(const q of proj){if(q&&Math.hypot(q.x-mx,q.y-my)<12){
     if(q.cluster){ openClusterOrZoom(q); return; }
-    openDossier({place:q.e.place});return}}
+    openMarker(q.e);return}}
   // no marker hit → open the country under the cursor
   const ll=screenToLatLon(mx,my);if(!ll)return;const c=countryAt(ll.lat,ll.lon);if(c)openDossier({iso:c.i});});
 // clicking a cluster zooms/centres so it separates into individual markers.
@@ -1388,8 +1389,8 @@ scrim.addEventListener('click',()=>{closeDossier();closeModals();});
       for(const q of proj){if(q&&Math.hypot(q.x-mx,q.y-my)<18){
         // On touch, a tap on a cluster opens the top event's dossier (users pinch to
         // zoom) — tapping "hotpoints" now always reaches a dossier instead of looping zoom.
-        if(q.cluster){const m=q.members||[];if(m.length){const top=m.slice().sort((a,b)=>((b.intensity||0)+(b.count||0))-((a.intensity||0)+(a.count||0)))[0];openDossier({place:top.place||top.label});}else openClusterOrZoom(q);}
-        else openDossier({place:q.e.place});
+        if(q.cluster){const m=q.members||[];if(m.length){const top=m.slice().sort((a,b)=>((b.intensity||0)+(b.count||0))-((a.intensity||0)+(a.count||0)))[0];openMarker(top);}else openClusterOrZoom(q);}
+        else openMarker(q.e);
         hit=true;break;}}
       if(!hit){const l=screenToLatLon(mx,my);if(l){const c=countryAt(l.lat,l.lon);if(c)openDossier({iso:c.i});}}}
     dragging=false;pinch=null;
@@ -1906,6 +1907,54 @@ async function openDossier(params){
     if(isFinite(d.lon)&&isFinite(d.lat))focusLon(d.lon,d.lat,d.name);
   }catch(e){}
 }
+// A tapped map marker opens the right detail: aircraft → live ADS-B card; else dossier.
+function openMarker(e){ if(e&&e.layer==='aircraft'&&e.hex) openAircraft(e); else if(e&&e.place) openDossier({place:e.place}); }
+// Live ADS-B aircraft intel card (rendered from client-side data — no fetch, instant).
+function openAircraft(a){
+  const fl=a.alt?('FL'+Math.round(a.alt/100)+' · '+a.alt.toLocaleString()+' ft'):(a.alt===0?'on ground':'—');
+  const hdg=a.track!=null?(a.heading+' · '+a.track+'°'):'—';
+  const vsi=a.vsi!=null?((a.vsi>60?'▲ climbing ':a.vsi<-60?'▼ descending ':'level ')+(Math.abs(a.vsi)>60?Math.abs(a.vsi)+' ft/min':'')).trim():'—';
+  const track='https://globe.adsbexchange.com/?icao='+encodeURIComponent((a.hex||'').toLowerCase());
+  document.getElementById('dinner').innerHTML=`
+  <div class="dhead" style="--c:#3987e5">
+    <div class="acicon">${a.emergency?'🚨':'✈'}</div>
+    <div class="dhx"><div class="dtitle">${esc(a.callsign||a.label||a.hex||'Unknown')}</div>
+      <div class="dmeta">${esc(a.desc||a.type||'Military aircraft')}</div>
+      <div class="dbadges"><span class="tier" style="--c:#3987e5">${esc(a.role||'MILITARY').toUpperCase()}</span>${a.country?`<span class="conf">${esc(a.country)}</span>`:''}${a.emergency?`<span class="conf" style="color:#e5484d;border-color:#e5484d">⚠ ${esc(a.emergency)}</span>`:''}</div></div>
+    <div class="dacts"><button class="dclose" id="dclose">✕</button></div>
+  </div>
+  <div class="dbody">
+    <div class="sec">Aircraft</div>
+    <div class="facts">
+      <div><span>Type code</span><b>${esc(a.type||'—')}</b></div>
+      <div><span>Model</span><b>${esc(a.desc||'unknown')}</b></div>
+      <div><span>Registration</span><b>${esc(a.reg||'—')}</b></div>
+      <div><span>ICAO hex</span><b>${esc((a.hex||'—').toUpperCase())}</b></div>
+    </div>
+    <div class="sec">Operator</div>
+    <div class="facts">
+      <div><span>Country</span><b>${esc(a.country||'unknown')}</b></div>
+      <div><span>Operator</span><b>${esc(a.operator||'—')}</b></div>
+      <div><span>Callsign</span><b>${esc(a.callsign||'—')}</b></div>
+      <div><span>Class</span><b>${esc(a.role||'—')}</b></div>
+    </div>
+    <div class="sec">Flight</div>
+    <div class="facts">
+      <div><span>Altitude</span><b>${fl}</b></div>
+      <div><span>Speed</span><b>${a.speed!=null?a.speed+' kt':'—'}</b></div>
+      <div><span>Heading</span><b>${hdg}</b></div>
+      <div><span>Vertical</span><b>${vsi}</b></div>
+      <div><span>Squawk</span><b>${esc(a.squawk||'—')}${a.emergency?' ⚠':''}</b></div>
+      <div><span>Position</span><b>${isFinite(a.lat)?a.lat.toFixed(3)+', '+a.lon.toFixed(3):'—'}</b></div>
+    </div>
+    <div class="sec">Track live</div>
+    <a class="feed" href="${track}" target="_blank" rel="noopener noreferrer"><span class="ft" style="color:var(--blue)">Follow ${esc((a.hex||'').toUpperCase())} on ADS-B Exchange ▸</span></a>
+    <div class="dfoot">Live ADS-B broadcast${a.time?' · '+ago(a.time):''}. Destination and mission are not transmitted over ADS-B; heading shows current course. Operator inferred from ICAO registration${a.callsign?' + callsign':''}.</div>
+  </div>`;
+  document.getElementById('dclose').addEventListener('click',closeDossier);
+  drawer.classList.add('open');scrim.classList.add('open');
+  if(isFinite(a.lon)&&isFinite(a.lat))focusLon(a.lon,a.lat,a.label);
+}
 function renderDossier(d){
   const col=TIER[d.tier]||'#3987e5';
   const C=2*Math.PI*26,dash=Math.max(0,Math.min(1,d.score/100))*C;
@@ -2179,7 +2228,7 @@ async function refresh(){
   try{
     const [aircraft,vessels,thermal,cyber,armed,disease,terror]=await Promise.all([
       P.aircraft,P.vessels,P.thermal,P.cyber,P.armed,P.disease,P.terror]);
-    LDATA.aircraft=(aircraft||[]).map(a=>({lat:a.lat,lon:a.lon,intensity:a.intensity,label:a.label,place:a.place,role:a.role,track:a.track,sub:a.sub}));
+    LDATA.aircraft=(aircraft||[]).map(a=>({...a})); // keep full ADS-B intel for the aircraft card
     LDATA.vessels=(vessels||[]).map(v=>({lat:v.lat,lon:v.lon,intensity:v.intensity,label:v.label,place:v.place,sub:v.sub}));
     LDATA.thermal=(thermal||[]).map(t=>({lat:t.lat,lon:t.lon,intensity:t.intensity,label:t.label,place:t.place,sub:t.sub}));
     LDATA.cyber=(cyber||[]).map(c=>({lat:c.lat,lon:c.lon,intensity:c.intensity,label:c.label,place:c.place,sub:c.sub}));

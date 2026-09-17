@@ -7,6 +7,58 @@
 const ENDPOINTS = ['https://opendata.adsb.fi/api/v2/mil', 'https://api.adsb.lol/v2/mil'];
 const UA = 'Mozilla/5.0 (compatible; VigilMonitor/1.0; +https://vigil.local)';
 
+// ICAO 24-bit address → country of registration (the operating nation). Ranges per
+// ICAO Annex 10; covers the militaries that fly ADS-B most. Returns { country, iso }.
+const ICAO_RANGES = [
+  [0xA00000, 0xAFFFFF, 'United States', 'US'], [0x400000, 0x43FFFF, 'United Kingdom', 'GB'],
+  [0x380000, 0x3BFFFF, 'France', 'FR'], [0x3C0000, 0x3FFFFF, 'Germany', 'DE'],
+  [0x300000, 0x33FFFF, 'Italy', 'IT'], [0x340000, 0x37FFFF, 'Spain', 'ES'],
+  [0x480000, 0x4BFFFF, 'Netherlands', 'NL'], [0x440000, 0x447FFF, 'Austria', 'AT'],
+  [0x448000, 0x44FFFF, 'Belgium', 'BE'], [0x450000, 0x457FFF, 'Denmark', 'DK'],
+  [0x460000, 0x467FFF, 'Finland', 'FI'], [0x468000, 0x46FFFF, 'Greece', 'GR'],
+  [0x478000, 0x47FFFF, 'Norway', 'NO'], [0x4A0000, 0x4A7FFF, 'Sweden', 'SE'],
+  [0x4B0000, 0x4B7FFF, 'Switzerland', 'CH'], [0x470000, 0x477FFF, 'Poland', 'PL'],
+  [0x490000, 0x497FFF, 'Portugal', 'PT'], [0x4C0000, 0x4C7FFF, 'Türkiye', 'TR'],
+  [0x140000, 0x1FFFFF, 'Russia', 'RU'], [0x500000, 0x5003FF, 'Ukraine', 'UA'],
+  [0x508000, 0x50FFFF, 'Ukraine', 'UA'], [0x780000, 0x7BFFFF, 'China', 'CN'],
+  [0x750000, 0x757FFF, 'India', 'IN'], [0x840000, 0x87FFFF, 'Japan', 'JP'],
+  [0x718000, 0x71FFFF, 'South Korea', 'KR'], [0x738000, 0x73FFFF, 'Israel', 'IL'],
+  [0x710000, 0x717FFF, 'Saudi Arabia', 'SA'], [0x760000, 0x767FFF, 'Iran', 'IR'],
+  [0x896000, 0x896FFF, 'United Arab Emirates', 'AE'], [0x700000, 0x700FFF, 'Afghanistan', 'AF'],
+  [0x7C0000, 0x7FFFFF, 'Australia', 'AU'], [0xC00000, 0xC3FFFF, 'Canada', 'CA'],
+  [0xE00000, 0xE3FFFF, 'Argentina', 'AR'], [0xE40000, 0xE7FFFF, 'Brazil', 'BR'],
+  [0x0A0000, 0x0A7FFF, 'Egypt', 'EG'], [0x008000, 0x00FFFF, 'South Africa', 'ZA'],
+  [0x201000, 0x2013FF, 'Pakistan', 'PK'], [0x760000, 0x7607FF, 'Iran', 'IR'],
+  [0x788000, 0x78FFFF, 'Taiwan', 'TW'], [0x800000, 0x83FFFF, 'India', 'IN'],
+];
+function icaoCountry(hex) {
+  const n = parseInt(hex, 16);
+  if (!Number.isFinite(n)) return null;
+  for (const [a, b, country, iso] of ICAO_RANGES) if (n >= a && n <= b) return { country, iso };
+  return null;
+}
+
+// Common military callsign families → operator (best-effort; the "who's flying it").
+const CALLSIGN_OPS = [
+  [/^RCH/, 'US Air Mobility Command (Reach)'], [/^RRR/, 'Royal Air Force'],
+  [/^CFC|^CANFORCE/, 'Canadian Forces'], [/^GAF/, 'German Air Force'],
+  [/^FAF|^CTM|^COTAM/, 'French Air Force'], [/^IAM|^IAF/, 'Italian Air Force'],
+  [/^NATO|^MMF/, 'NATO'], [/^FORTE|^HOMER|^JAKE|^GRZLY|^REDEYE/, 'US ISR/Recon'],
+  [/^POLAF|^PLF/, 'Polish Air Force'], [/^HKY|^HAWK/, 'US Army'],
+  [/^EVAC|^PAT/, 'US medevac/priority'], [/^NAVY|^CNV|^VVUS/, 'US Navy'],
+  [/^UAF/, 'Ukrainian Air Force'], [/^RSD|^SAUDI/, 'Royal Saudi Air Force'],
+  [/^IAF|^IsrAF/, 'Israeli Air Force'], [/^JAF/, 'Royal Jordanian Air Force'],
+  [/^TUAF|^TUR/, 'Turkish Air Force'], [/^ASY|^AYB/, 'Australian Defence Force'],
+];
+function operatorOf(call, country) {
+  const c = (call || '').toUpperCase();
+  for (const [re, op] of CALLSIGN_OPS) if (re.test(c)) return op;
+  return country ? country + ' military' : '';
+}
+const DIRS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+const headingOf = (t) => (t == null ? null : DIRS[Math.round(((t % 360) / 45)) % 8]);
+const EMERGENCY = { 7500: 'HIJACK', 7600: 'RADIO FAILURE', 7700: 'GENERAL EMERGENCY' };
+
 // classify by ICAO type prefix into a coarse role (for the analyst, not exhaustive)
 function roleOf(t = '', desc = '') {
   const s = (t + ' ' + desc).toUpperCase();
@@ -40,6 +92,11 @@ export async function fetchAircraft() {
     if (typeof a.lat !== 'number' || typeof a.lon !== 'number') continue;
     const role = roleOf(a.t, a.desc);
     const call = (a.flight || a.r || a.hex || '').trim();
+    const nat = icaoCountry(a.hex) || {};
+    const alt = a.alt_baro === 'ground' ? 0 : (typeof a.alt_baro === 'number' ? a.alt_baro : null);
+    const heading = headingOf(typeof a.track === 'number' ? a.track : null);
+    const sq = a.squawk ? parseInt(a.squawk, 10) : null;
+    const emergency = (sq && EMERGENCY[sq]) || (a.emergency && a.emergency !== 'none' ? String(a.emergency).toUpperCase() : '') || '';
     events.push({
       id: 'air:' + a.hex,
       lat: a.lat, lon: a.lon,
@@ -48,13 +105,25 @@ export async function fetchAircraft() {
       place: call || a.hex,
       role,
       type: a.t || '',
-      alt: a.alt_baro === 'ground' ? 0 : (a.alt_baro || null),
-      speed: a.gs || null,
-      track: a.track ?? null,
-      intensity: role === 'Bomber' || role === 'ISR/Recon' ? 0.9 : role === 'Fighter' || role === 'Tanker' ? 0.7 : 0.45,
+      desc: a.desc || '',                        // what it is (aircraft description)
+      hex: a.hex,                                 // ICAO 24-bit address
+      reg: (a.r || '').trim(),                    // registration / tail
+      callsign: (a.flight || '').trim(),
+      country: nat.country || '',                 // registration nation (who operates it)
+      iso: nat.iso || '',
+      operator: operatorOf(a.flight, nat.country),// best-effort operating unit
+      squawk: a.squawk || '',
+      emergency,                                  // 7500/7600/7700 or reported emergency
+      alt,
+      speed: typeof a.gs === 'number' ? Math.round(a.gs) : null,   // knots
+      track: typeof a.track === 'number' ? Math.round(a.track) : null, // degrees
+      heading,                                    // compass point (where it's pointed)
+      vsi: typeof a.baro_rate === 'number' ? a.baro_rate : null,   // climb/descent ft/min
+      category: a.category || '',
+      intensity: emergency ? 1 : role === 'Bomber' || role === 'ISR/Recon' ? 0.9 : role === 'Fighter' || role === 'Tanker' ? 0.7 : 0.45,
       time: now,
       source: 'ADS-B',
-      sub: `${a.desc || a.t || 'Military aircraft'} · ${role}${a.alt_baro && a.alt_baro !== 'ground' ? ' · FL' + Math.round(a.alt_baro / 100) : ''}${call ? ' · ' + call : ''}`,
+      sub: `${a.desc || a.t || 'Military aircraft'} · ${role}${nat.country ? ' · ' + nat.country : ''}${alt ? ' · FL' + Math.round(alt / 100) : ''}${heading ? ' · hdg ' + heading : ''}${emergency ? ' · ⚠ ' + emergency : ''}`,
     });
   }
   return { events, live, sources: live ? ['ADS-B Military'] : [] };
