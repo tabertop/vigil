@@ -2301,7 +2301,10 @@ async function refresh(){
     document.getElementById('newsList').innerHTML=EVS.slice(0,50).map((e,i)=>{
       const conf=e.confidence||{level:'SINGLE-SOURCE',score:0,bestGrade:'—'};
       const lv=conf.level,col=confCol[lv]||'#7d8590';
-      const grades=(e.provenance||[]).slice(0,6).map(p=>`<span class="gchip g${p.grade}" title="${esc(p.source)} · grade ${p.grade} (${esc(p.gradeLabel||'')})">${esc(p.source)}<b>${p.grade}</b></span>`).join('')+((e.provenance||[]).length>6?`<span class="gchip more">+${e.provenance.length-6}</span>`:'');
+      // one chip per DISTINCT source (a source with many articles — e.g. a live-blog —
+      // shouldn't fill the row with repeats); keep each source's best/first grade.
+      const seenSrc=new Set(),distinctP=[];for(const p of (e.provenance||[])){if(!seenSrc.has(p.source)){seenSrc.add(p.source);distinctP.push(p);}}
+      const grades=distinctP.slice(0,6).map(p=>`<span class="gchip g${p.grade}" title="${esc(p.source)} · grade ${p.grade} (${esc(p.gradeLabel||'')})">${esc(p.source)}<b>${p.grade}</b></span>`).join('')+(distinctP.length>6?`<span class="gchip more">+${distinctP.length-6}</span>`:'');
       const geo=(e.countries||[]).join(' · ');
       const prov=(e.provenance||[]).map(p=>`<a class="pv" href="${esc(p.url)}" target="_blank" rel="noopener noreferrer"><span class="gchip g${p.grade}">${esc(p.source)}<b>${p.grade}</b></span><span class="pvt">${esc(p.title)}</span></a>`).join('');
       const sev=e.severity?' <span class="sevdot" style="color:'+(e.severity>=2?'#e5484d':'#f2792b')+'">'+'●'.repeat(e.severity)+'</span>':'';
