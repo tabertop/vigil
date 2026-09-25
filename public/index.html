@@ -2141,18 +2141,29 @@ async function refresh(){
     try{
       const label=a=>a.source&&a.source.includes('GDELT')?(a.domain||'gdelt').toUpperCase():(a.source||a.domain||'').toUpperCase();
       const cls=a=>a.source&&a.source.includes('GDELT')?'':'rss';
-      // Diversify: the wire is newest-first and clusters by outlet, so round-robin
-      // across distinct sources for variety — no long runs from one feed.
-      const diversify=(items,n)=>{
+      // Diversify: round-robin across distinct sources AND cap how many items any one
+      // source can contribute (perSrc), so a prolific feed (e.g. a Telegram channel
+      // posting a multi-part thread) can't dominate — no long runs of the same source.
+      const diversify=(items,n,perSrc=3)=>{
         const buckets=new Map();
         for(const a of (items||[])){const k=(a.source||a.domain||'?');if(!buckets.has(k))buckets.set(k,[]);buckets.get(k).push(a);}
-        const queues=[...buckets.values()],out=[];
-        while(out.length<n&&queues.some(q=>q.length)){for(const q of queues){if(q.length){out.push(q.shift());if(out.length>=n)break;}}}
+        const queues=[...buckets.values()],out=[],used={};
+        while(out.length<n){
+          let progressed=false;
+          for(const q of queues){
+            if(!q.length)continue;
+            const a=q[0],k=a.source||a.domain||'?';
+            if((used[k]||0)>=perSrc){q.length=0;continue;} // source hit its cap — drop the rest
+            q.shift();out.push(a);used[k]=(used[k]||0)+1;progressed=true;
+            if(out.length>=n)break;
+          }
+          if(!progressed)break;
+        }
         return out;
       };
-      const w=diversify(wire,24).map(a=>`<a href="${a.url}" target="_blank" rel="noopener noreferrer"><b class="${cls(a)}">${label(a)}</b> — ${esc(a.title||'')}</a>`).join('');
+      const w=diversify(wire,24,2).map(a=>`<a href="${a.url}" target="_blank" rel="noopener noreferrer"><b class="${cls(a)}">${label(a)}</b> — ${esc(a.title||'')}</a>`).join('');
       // mobile Wire tab: a readable vertical feed from the same diversified wire
-      const mw=document.getElementById('mwire'); if(mw) mw.innerHTML=diversify(wire,60).map(a=>`<a href="${a.url}" target="_blank" rel="noopener noreferrer"><b class="${cls(a)}">${label(a)}</b>${esc(a.title||'')}</a>`).join('')||'<div class="ph" style="padding:22px 16px"><span class="m">no wire items in this window</span></div>';
+      const mw=document.getElementById('mwire'); if(mw) mw.innerHTML=diversify(wire,60,3).map(a=>`<a href="${a.url}" target="_blank" rel="noopener noreferrer"><b class="${cls(a)}">${label(a)}</b>${esc(a.title||'')}</a>`).join('')||'<div class="ph" style="padding:22px 16px"><span class="m">no wire items in this window</span></div>';
       if(w){
         const wireEl=document.getElementById('wire');
         wireEl.innerHTML=w+w;
