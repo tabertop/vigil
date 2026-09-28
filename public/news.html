@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>VIGIL — Wire</title>
+<style>
+:root{--page:#0d0d0d;--surface:#161615;--line:#2c2c2a;--line-soft:rgba(255,255,255,.06);--ink:#fff;--ink2:#c8c7bd;--muted:#8f8d86;--blue:#3987e5;--aqua:#199e70;--red:#d03b3b;--orange:#f2792b;--warn:#fab219;--good:#0ca30c;--mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;--sans:system-ui,-apple-system,"Segoe UI",sans-serif}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--page);color:var(--ink);font-family:var(--sans)}
+a{color:inherit;text-decoration:none}
+::selection{background:rgba(57,135,229,.3)}
+/* ---- header ---- */
+.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:14px;height:52px;padding:0 18px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,rgba(20,20,19,.96),rgba(13,13,13,.9));backdrop-filter:blur(8px)}
+.logo{width:30px;height:30px;flex:none;filter:drop-shadow(0 0 6px rgba(58,160,229,.45))}
+h1{font-size:15px;letter-spacing:3px;margin:0;font-weight:700}
+h1 small{display:block;font-size:8px;letter-spacing:2.5px;color:var(--muted);font-family:var(--mono);font-weight:400}
+.spacer{margin-left:auto}
+.status{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:11px}
+.timebar{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.timebar button{background:none;border:none;border-right:1px solid var(--line-soft);color:var(--muted);font-family:var(--mono);font-size:10.5px;letter-spacing:1px;padding:5px 11px;cursor:pointer}
+.timebar button:last-child{border-right:none}
+.timebar button.on{background:var(--blue);color:#fff}
+.navbtn{padding:5px 11px;border-radius:20px;border:1px solid var(--line);background:rgba(255,255,255,.03);font-family:var(--mono);font-size:11px;color:var(--muted);cursor:pointer;letter-spacing:.5px}
+.navbtn:hover{color:var(--ink);border-color:var(--muted)}
+.pill{display:flex;align-items:center;gap:7px;padding:4px 10px;border-radius:20px;font-family:var(--mono);font-size:10px;letter-spacing:1px;border:1px solid var(--line)}
+.pill .d{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+.pill.live .d{background:var(--good);box-shadow:0 0 7px var(--good);animation:blink 1.6s infinite}
+.pill.live{color:var(--good)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.clock{color:var(--muted);font-size:11px}
+.classbar{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--warn);background:rgba(250,178,25,.05);border-bottom:1px solid var(--line-soft);padding:5px 18px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* ---- layout ---- */
+.wrap{max-width:1440px;margin:0 auto;padding:20px 18px 60px}
+.sec{font-family:var(--mono);font-size:10px;letter-spacing:2.5px;text-transform:uppercase;color:var(--muted);margin:0 0 12px;padding-bottom:7px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+.sec::before{content:"";width:8px;height:8px;background:var(--red);border-radius:2px;box-shadow:0 0 8px var(--red)}
+.sec.blue::before{background:var(--blue);box-shadow:0 0 8px var(--blue)}
+.sec.aqua::before{background:var(--aqua);box-shadow:0 0 8px var(--aqua)}
+.sec.warn::before{background:var(--warn);box-shadow:0 0 8px var(--warn)}
+/* ---- hero ---- */
+.hero{display:block;padding:22px 24px;border:1px solid var(--line);border-left:3px solid var(--red);border-radius:12px;background:linear-gradient(160deg,rgba(208,59,59,.06),rgba(22,22,21,.4));margin-bottom:22px;cursor:pointer;transition:.15s}
+.hero:hover{border-color:var(--muted)}
+.hero .k{font-family:var(--mono);font-size:9.5px;letter-spacing:2px;color:var(--red);margin-bottom:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.hero .ht{font-size:clamp(24px,3.4vw,38px);line-height:1.12;font-weight:800;letter-spacing:-.5px}
+.hero:hover .ht{color:#fff}
+.hero .hm{margin-top:12px;font-family:var(--mono);font-size:11px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+/* corroboration badge */
+.src{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:5px;letter-spacing:.5px;color:var(--muted);border:1px solid var(--line)}
+.src b{font-weight:700}
+.src.s1{color:var(--muted)}
+.src.s2{color:var(--blue);border-color:rgba(57,135,229,.4);background:rgba(57,135,229,.08)}
+.src.s3{color:var(--good);border-color:rgba(12,163,12,.45);background:rgba(12,163,12,.08)}
+.sev{color:var(--red);font-weight:700}
+/* featured cards */
+.featured{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;margin-bottom:26px}
+.card{display:block;padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:rgba(22,22,21,.4);cursor:pointer;transition:.15s}
+.card:hover{border-color:var(--muted);background:rgba(30,30,28,.6)}
+.card .ct{font-size:15.5px;line-height:1.3;font-weight:600}
+.card:hover .ct{color:var(--blue)}
+.card .cm{margin-top:9px;font-family:var(--mono);font-size:10px;color:var(--muted);display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+/* columns */
+.grid{display:grid;grid-template-columns:1fr 1fr 340px;gap:26px;align-items:start}
+.col{min-width:0}
+.item{display:block;padding:11px 0;border-bottom:1px solid var(--line-soft);cursor:pointer}
+.item:hover .it{color:var(--blue)}
+.item .il{font-family:var(--mono);font-size:9.5px;letter-spacing:.5px;color:var(--aqua);text-transform:uppercase;margin-bottom:3px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.item .il .gd{color:var(--muted)}
+.item .it{font-size:14px;line-height:1.38;color:var(--ink2)}
+.item .it b{color:#fff;font-weight:600}
+/* threat board */
+.rail{border:1px solid var(--line);border-radius:12px;padding:16px;background:rgba(22,22,21,.35);position:sticky;top:70px}
+.trow{display:flex;align-items:center;gap:11px;padding:8px 0;border-bottom:1px solid var(--line-soft);cursor:pointer}
+.trow:hover .tn{color:var(--blue)}
+.tscore{width:34px;height:34px;flex:none;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:700;font-size:14px;color:#fff}
+.tn{font-size:13.5px;font-weight:600}
+.tt{font-family:var(--mono);font-size:9px;letter-spacing:1px;color:var(--muted);margin-top:1px}
+.ph{color:var(--muted);font-family:var(--mono);font-size:11px;padding:10px 0}
+footer{max-width:1440px;margin:0 auto;padding:24px 18px;border-top:1px solid var(--line);color:var(--muted);font-family:var(--mono);font-size:10px;letter-spacing:.5px;line-height:1.7}
+@media (max-width:1000px){.grid{grid-template-columns:1fr}.rail{position:static}}
+@media (max-width:560px){.top{gap:8px;padding:0 12px}.wrap{padding:14px 12px 50px}.timebar button{padding:5px 8px}}
+</style>
+</head>
+<body>
+<header class="top">
+  <svg class="logo" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M2 16 Q16 5 30 16 Q16 27 2 16 Z" stroke="#3aa0e5" stroke-width="1.8" fill="rgba(58,160,229,.06)"/>
+    <circle cx="16" cy="16" r="6.4" stroke="#e8b53a" stroke-width="1.5" fill="rgba(232,181,58,.12)"/>
+    <ellipse cx="16" cy="16" rx="2.7" ry="6.4" stroke="#e8b53a" stroke-width="1"/>
+    <line x1="9.6" y1="16" x2="22.4" y2="16" stroke="#e8b53a" stroke-width="1"/>
+    <circle cx="16" cy="16" r="1.5" fill="#e8b53a"/>
+  </svg>
+  <div><h1>VIGIL<small>THE WIRE</small></h1></div>
+  <span class="spacer"></span>
+  <div class="status">
+    <span class="timebar" id="timebar"><button data-w="1h">1h</button><button data-w="6h">6h</button><button data-w="24h" class="on">24h</button><button data-w="48h">48h</button><button data-w="7d">7d</button></span>
+    <span class="pill" id="srcPill"><span class="d"></span><span id="srcTxt">CONNECTING…</span></span>
+    <a class="navbtn" href="/">◱ MAP</a>
+    <span class="navbtn" id="signout">SIGN OUT</span>
+    <span class="clock" id="clock">--:--</span>
+  </div>
+</header>
+<div class="classbar">UNCLASSIFIED // OSINT · OPEN-SOURCE INTELLIGENCE ESTIMATE — NOT OFFICIAL CONFIRMATION · ASSESS WITH SOURCE CONFIDENCE</div>
+<main class="wrap">
+  <section class="hero" id="hero"><div class="ht">Loading the wire…</div></section>
+  <section class="featured" id="featured"></section>
+  <div class="grid">
+    <div class="col"><div class="sec blue">Latest</div><div id="latest"><div class="ph">loading…</div></div></div>
+    <div class="col"><div class="sec">Conflict &amp; Security</div><div id="conflict"><div class="ph">loading…</div></div></div>
+    <aside class="rail">
+      <div class="sec warn">Threat Board</div><div id="threat"><div class="ph">loading…</div></div>
+      <div class="sec aqua" style="margin-top:22px">Most Corroborated</div><div id="corrob"><div class="ph">loading…</div></div>
+    </aside>
+  </div>
+</main>
+<footer id="foot">VIGIL — open-source intelligence wire. Headlines aggregated from ~150 live sources; corroboration counts reflect distinct outlets carrying a story. Not official confirmation.</footer>
+<script>
+const TIER={Critical:'#d03b3b',Severe:'#f2792b',Elevated:'#fab219',Watch:'#3987e5'};
+let win='24h';
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function ago(ts){if(!ts)return'';const m=Math.max(0,(Date.now()-ts)/60000);if(m<1)return'now';if(m<60)return Math.round(m)+'m';const h=m/60;if(h<24)return Math.round(h)+'h';return Math.round(h/24)+'d';}
+const label=a=>a.source&&a.source.includes('GDELT')?(a.domain||'GDELT').toUpperCase():(a.source||a.domain||'').toUpperCase();
+const srcClass=n=>n>=3?'s3':n>=2?'s2':'s1';
+const flags=isos=>(isos||[]).slice(0,5).join(' · ');
+// round-robin across sources + cap per source, so no outlet dominates a column
+function diversify(items,n,perSrc=2){const b=new Map();for(const a of(items||[])){const k=a.source||a.domain||'?';if(!b.has(k))b.set(k,[]);b.get(k).push(a)}const q=[...b.values()],out=[],used={};while(out.length<n){let p=false;for(const x of q){if(!x.length)continue;const a=x[0],k=a.source||a.domain||'?';if((used[k]||0)>=perSrc){x.length=0;continue}x.shift();out.push(a);used[k]=(used[k]||0)+1;p=true;if(out.length>=n)break}if(!p)break}return out}
+const CONFLICT=/strike|missile|attack|militar|\bwar\b|troops|offensive|drone|nuclear|border|clash|forces|\barmy\b|navy|air ?force|shell|bomb|kill|rebel|militant|terror|coup|sanction|cyber|hack|breach|insurg|siege|assault|warplane|artillery|hostage|regime|junta|occup|annex|incursion|espionage|assassinat|ambush|raid|escalat|weapon|ballistic|Houthi|IDF|NATO|ceasefire/i;
+function open(url){if(url)window.open(url,'_blank','noopener')}
+
+function renderHero(s){const el=document.getElementById('hero');if(!s){el.innerHTML='<div class="ht">No stories in this window.</div>';return}
+  el.style.borderLeftColor=s.severity>=2?'var(--red)':s.severity>=1?'var(--orange)':'var(--blue)';
+  el.innerHTML=`<div class="k"><span>◆ LEAD</span><span class="src ${srcClass(s.sourceCount)}">${s.sourceCount}<b>&nbsp;SRC</b></span>${s.severity>=2?'<span class="sev">⚠ HIGH SEVERITY</span>':''}</div>
+    <div class="ht">${esc(s.title)}</div>
+    <div class="hm"><span>${esc(label(s))}</span>${s.publishedAt?'<span>'+ago(s.publishedAt)+' ago</span>':''}${s.countries&&s.countries.length?'<span>'+esc(flags(s.countries))+'</span>':''}<span>${s.articleCount} report${s.articleCount===1?'':'s'}</span></div>`;
+  el.onclick=()=>open(s.url);
+}
+function renderFeatured(list){const el=document.getElementById('featured');
+  el.innerHTML=list.map(s=>`<a class="card" onclick="open('${encodeURI(s.url||'')}')"><div class="ct">${esc(s.title)}</div><div class="cm"><span class="src ${srcClass(s.sourceCount)}">${s.sourceCount}<b>&nbsp;SRC</b></span><span>${esc(label(s))}</span>${s.publishedAt?'<span>'+ago(s.publishedAt)+'</span>':''}${s.countries&&s.countries.length?'<span>'+esc(flags(s.countries))+'</span>':''}</div></a>`).join('');
+}
+function renderItems(id,items){const el=document.getElementById(id);
+  el.innerHTML=items.length?items.map(a=>`<a class="item" onclick="open('${encodeURI(a.url||'')}')"><div class="il">${esc(label(a))}${a.countries&&a.countries.length?'<span class="gd">'+esc(flags(a.countries))+'</span>':''}${a.publishedAt?'<span class="gd">'+ago(a.publishedAt)+'</span>':''}</div><div class="it">${esc(a.title)}</div></a>`).join(''):'<div class="ph">nothing in this window</div>';
+}
+function renderThreat(countries){const el=document.getElementById('threat');
+  const top=(countries||[]).slice(0,12);
+  el.innerHTML=top.length?top.map(c=>{const col=TIER[c.tier]||'#3987e5';return `<a class="trow" href="/#${esc(c.iso)}"><div class="tscore" style="background:color-mix(in srgb,${col} 22%,transparent);border:1px solid color-mix(in srgb,${col} 55%,transparent)">${c.score}</div><div><div class="tn">${esc(c.name)}</div><div class="tt">${esc((c.tier||'').toUpperCase())}${c.articles?' · '+c.articles+' reports':''}</div></div></a>`}).join(''):'<div class="ph">no scored countries</div>';
+}
+
+async function load(){
+  const qs='?window='+win;
+  try{
+    const [topnews,wire,index,health]=await Promise.all([
+      fetch('/api/topnews'+qs).then(r=>r.json()),
+      fetch('/api/wire'+qs).then(r=>r.json()),
+      fetch('/api/index'+qs).then(r=>r.json()),
+      fetch('/api/health').then(r=>r.json()),
+    ]);
+    const stories=(topnews&&topnews.stories)||[];
+    renderHero(stories[0]);
+    renderFeatured(stories.slice(1,7));
+    renderItems('corrob',stories.slice(7,20).length?stories.slice(7,20):stories.slice(1,14));
+    const w=Array.isArray(wire)?wire:[];
+    renderItems('latest',diversify(w,26,2));
+    renderItems('conflict',diversify(w.filter(a=>CONFLICT.test(a.title||'')),24,2));
+    renderThreat((index&&index.countries)||[]);
+    const pill=document.getElementById('srcPill'),txt=document.getElementById('srcTxt');
+    if(health&&health.live){pill.className='pill live';txt.textContent=(health.sources?health.sources.length:0)+' SOURCES LIVE';}
+    else{pill.className='pill';txt.textContent='SAMPLE DATA';}
+  }catch(e){document.getElementById('srcTxt').textContent='API UNREACHABLE';}
+}
+document.getElementById('timebar').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;win=b.dataset.w;document.querySelectorAll('#timebar button').forEach(x=>x.classList.toggle('on',x===b));load();});
+document.getElementById('signout').addEventListener('click',async()=>{try{await fetch('/api/logout');}catch(e){}location.href='/login';});
+function tick(){const d=new Date();document.getElementById('clock').textContent=d.toLocaleTimeString('en-US',{timeZone:'America/New_York',hour:'2-digit',minute:'2-digit',hour12:false,timeZoneName:'short'});}
+setInterval(tick,1000);tick();
+load();setInterval(load,60000);
+</script>
+</body>
+</html>

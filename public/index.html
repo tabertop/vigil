@@ -620,6 +620,7 @@ h1{font-size:15px;letter-spacing:3px;color:#fff}h1 small{display:block;font-size
       <span class="srcpill" id="srcList">SOURCES · <b>…</b></span>
       <span class="netbtn analystbtn" id="analystBtn" title="Ask the VIGIL AI analyst">🛰 ANALYST</span>
       <span class="netbtn" id="briefBtn" title="Global &amp; regional intelligence brief">◇ BRIEF</span>
+      <a class="netbtn" href="/news" title="Full-page news wire — Drudge-style headline board">▦ WIRE</a>
       <span class="netbtn" id="searchBtn" title="Search any country or actor  ( / )">⌕ SEARCH</span>
       <span class="netbtn" id="predictBtn" title="Predictive assessment — what's likely next">◎ PREDICT</span>
       <span class="netbtn" id="netBtn" title="Entity link analysis — actor & country co-occurrence graph">◈ NETWORK</span>
@@ -699,6 +700,7 @@ h1{font-size:15px;letter-spacing:3px;color:#fff}h1 small{display:block;font-size
   <div class="mgrab"></div>
   <div class="mgrid">
     <button data-more="brief"><span class="mgi">◇</span>Brief</button>
+    <button data-more="news"><span class="mgi">▦</span>Wire Page</button>
     <button data-more="predict"><span class="mgi">◎</span>Predict</button>
     <button data-more="network"><span class="mgi">◈</span>Network</button>
     <button data-more="search"><span class="mgi">⌕</span>Search</button>
@@ -1357,7 +1359,7 @@ scrim.addEventListener('click',()=>{closeDossier();closeModals();});
   // More sheet → reuse the existing (desktop-hidden) controls
   moreSheet.addEventListener('click',e=>{const b=e.target.closest('button[data-more]');if(!b)return;const a=b.dataset.more;closeMore();
     const clk=id=>{const el=document.getElementById(id);if(el)el.click();};
-    ({brief:()=>clk('briefBtn'),predict:()=>clk('predictBtn'),network:()=>clk('netBtn'),search:()=>clk('searchBtn'),watch:()=>clk('watchBtn'),alerts:()=>clk('alertBell'),cases:()=>clk('casesBtn'),help:()=>clk('helpBtn'),signout:()=>clk('userChip'),view:()=>{const t=document.querySelector('#viewtog button[data-v="'+(view==='3d'?'2d':'3d')+'"]');if(t)t.click();}}[a]||(()=>{}))();
+    ({brief:()=>clk('briefBtn'),news:()=>{location.href='/news';},predict:()=>clk('predictBtn'),network:()=>clk('netBtn'),search:()=>clk('searchBtn'),watch:()=>clk('watchBtn'),alerts:()=>clk('alertBell'),cases:()=>clk('casesBtn'),help:()=>clk('helpBtn'),signout:()=>clk('userChip'),view:()=>{const t=document.querySelector('#viewtog button[data-v="'+(view==='3d'?'2d':'3d')+'"]');if(t)t.click();}}[a]||(()=>{}))();
   });
   // Layers bottom sheet on the map
   const mlb=document.getElementById('mlayersBtn'); if(mlb)mlb.addEventListener('click',()=>layers.classList.toggle('mopen'));

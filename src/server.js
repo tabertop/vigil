@@ -283,7 +283,7 @@ const server = createServer(async (req, res) => {
   }
 
   // static files
-  let file = path === '/' ? '/index.html' : path === '/login' ? '/login.html' : path;
+  let file = path === '/' ? '/index.html' : path === '/login' ? '/login.html' : (path === '/news' || path === '/wire') ? '/news.html' : path;
   file = file.replace(/\.\./g, ''); // basic traversal guard
   try {
     const buf = await readFile(join(PUBLIC, file));
